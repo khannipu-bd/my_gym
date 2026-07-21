@@ -1,16 +1,17 @@
-# my_gym
+# 🏋️‍♂️ My Gym App - Android Application
 
-A morden gym apps
+এটি একটি আধুনিক এবং ইউজার-ফ্রেন্ডলি অ্যান্ড্রয়েড ফিটনেস অ্যাপ্লিকেশন। যা ইউজারদের প্রতিদিনের ওয়ার্কআউট ট্র্যাকিং, ডায়েট প্ল্যান মেইনটেইন এবং ফিটনেস গোল অর্জনে সাহায্য করবে।
 
-## Getting Started
+## ✨ মূল ফিচারসমূহ (Features)
+- **ডেইলি ওয়ার্কআউট প্ল্যান:** বিভিন্ন লেভেলের কাস্টমাইজড এক্সারসাইজ গাইড।
+- **ডায়েট ট্র্যাকার:** বডি ওয়েট অনুযায়ী ক্যালরি কাউন্টার।
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+## 🌐 লাইভ ল্যান্ডিং পেজ
+আমাদের অ্যাপটি ডাউনলোড করতে এবং বিস্তারিত জানতে ভিজিট করুন:  
+👉 [https://khannipu-bd.github.io/my-gym/](https://khannipu-bd.github.io/my-gym/)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🛠️ ডেভেলপমেন্ট টুলস
+- **IDE:** Android Studio
+- **Language:** Kotlin / Java
+- **Frontend (Landing Page):** HTML5, Tailwind CSS
