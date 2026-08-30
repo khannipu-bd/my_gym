@@ -7,7 +7,8 @@ import 'add_member_view.dart';
 import 'user_home_view.dart';
 import 'add_diet_view.dart';
 import 'add_workout_view.dart';
-import 'manage_members_view.dart'; // 👈 নতুন মেম্বার ম্যানেজমেন্ট ভিউ ফাইলটি ইম্পোর্ট করা হলো
+import 'manage_members_view.dart'; // 👈 মেম্বার ম্যানেজমেন্ট ভিউ
+import 'admin_trainer_management_view.dart'; // 👈 নতুন ট্রেইনার ম্যানেজমেন্ট ফাইলটি ইম্পোর্ট করা হলো
 
 class AdminDashboardView extends ConsumerWidget {
   const AdminDashboardView({super.key});
@@ -28,7 +29,7 @@ class AdminDashboardView extends ConsumerWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           // ১. ইউজার অ্যাপ বা মেম্বার স্ক্রিন কেমন দেখায় তা টেস্ট করার বাটন
-          TextButton.icon(
+          /*TextButton.icon(
             onPressed: () {
               Navigator.push(
                 context,
@@ -43,7 +44,7 @@ class AdminDashboardView extends ConsumerWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ),
+          ),*/
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             tooltip: 'Logout',
@@ -111,7 +112,7 @@ class AdminDashboardView extends ConsumerWidget {
                     },
                   ),
 
-                  // ৩. পুশ নোটিশ / অ্যানাউন্সমেন্ট (📢)
+                  // ৩. পুশ নোটিশ / অ্যানাউন্समেন্ট (📢)
                   _buildDashboardCard(
                     context: context,
                     title: 'Push Notices',
@@ -154,6 +155,23 @@ class AdminDashboardView extends ConsumerWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const AddMemberView(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // 🏋️‍♂️ ৬. নতুন ট্রেইনার ম্যানেজমেন্ট কার্ড (Manage Trainers)
+                  _buildDashboardCard(
+                    context: context,
+                    title: 'Manage Trainers',
+                    icon: Icons.psychology_alt_rounded,
+                    color: Colors.deepOrangeAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AdminTrainerManagementView(),
                         ),
                       );
                     },

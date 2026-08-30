@@ -1,5 +1,8 @@
+// login_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../controllers/auth_controller.dart';
 import 'admin_dashboard_view.dart';
 import 'user_home_view.dart';
@@ -15,6 +18,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  // 🎯 রিফ্রেশ ইস্যু এবং পপআপ ব্লক এড়ানোর জন্য লোকাল লোডিং ভেরিয়েবল
+  bool _isLocalLoading = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -25,14 +31,27 @@ class _LoginViewState extends ConsumerState<LoginView> {
   // প্রিমিয়াম ডার্ক থিম কাস্টম এরর ডায়ালগ ফাংশন
   void _showErrorDialog(BuildContext context, String errorMessage) {
     String cleanMessage = errorMessage;
+    String titleText = 'Login Failed';
+    IconData dialogIcon = Icons.gpp_bad_rounded;
+    Color iconColor = Colors.redAccent;
 
-    // ফায়ারবেসের কমন এরর মেসেজ ক্লিন করা
+    // ফায়ারবেসের কমন এরর মেসেজ এবং কাস্টম স্টেট ক্লিন করা
     if (errorMessage.contains('user-not-found') ||
         errorMessage.contains('invalid-credential') ||
         errorMessage.contains('wrong-password') ||
         errorMessage.contains('invalid-email-or-password')) {
       cleanMessage =
-          'Your Email or Password is wrong ! ❌\nঅনুগ্রহ করে সঠিক তথ্য দিয়ে আবার চেষ্টা করুন।';
+          'Your Email or Password is wrong ! ❌\nঅনুগ্রহ করে সঠিক তথ্য দিয়ে আবার চেষ্টা করুন।';
+    } else if (errorMessage == 'account-blocked') {
+      titleText = 'Account Locked 🔒';
+      cleanMessage =
+          'দুঃখিত, এডমিন প্যানেল থেকে আপনার অ্যাকাউন্টটি সাময়িকভাবে ব্লক করা হয়েছে। অনুগ্রহ করে জিম কর্তৃপক্ষের সাথে যোগাযোগ করুন।';
+    } else if (errorMessage == 'plan-expired') {
+      titleText = 'Plan Expired ⏰';
+      dialogIcon = Icons.timer_off_rounded;
+      iconColor = Colors.orangeAccent;
+      cleanMessage =
+          'আপনার মেম্বারশিপ প্ল্যানের মেয়াদ শেষ হয়ে গেছে! জিম অ্যাক্সেস করতে অনুগ্রহ করে আপনার প্ল্যানটি রিনিউ করুন।';
     } else if (errorMessage.contains('network-request-failed')) {
       cleanMessage = 'ইন্টারনেট কানেকশনটি চেক করুন! 🌐';
     } else if (errorMessage.contains('invalid-email')) {
@@ -53,25 +72,21 @@ class _LoginViewState extends ConsumerState<LoginView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // প্রিমিয়াম রেড এরর আইকন
+                // কাস্টমাইজড আইকন কন্টেইনার
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.1),
+                    color: iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.gpp_bad_rounded,
-                    color: Colors.redAccent,
-                    size: 44,
-                  ),
+                  child: Icon(dialogIcon, color: iconColor, size: 44),
                 ),
                 const SizedBox(height: 20),
 
-                // タイトル
-                const Text(
-                  'Login Failed',
-                  style: TextStyle(
+                // টাইটেল
+                Text(
+                  titleText,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -98,14 +113,14 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
+                      backgroundColor: iconColor,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                       elevation: 0,
                     ),
                     child: const Text(
-                      'Try Again',
+                      'Okay',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -124,11 +139,6 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    // 🎯 নোট: এখান থেকে গ্লোবাল ref.listen ব্লকটি পুরোপুরি বাদ দেওয়া হয়েছে,
-    // কারণ নেভিগেশন এখন main.dart এবং এরর হ্যান্ডলিং সরাসরি বাটন ক্লিক দিয়ে হচ্ছে।
-
-    final authState = ref.watch(authControllerProvider);
-
     return Scaffold(
       backgroundColor: const Color(0xFF12141C),
       body: Center(
@@ -155,7 +165,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
               const SizedBox(height: 24),
               const Center(
                 child: Text(
-                  'Welcome Back 🔥',
+                  'Spartan GYM🔥',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 26,
@@ -187,14 +197,13 @@ class _LoginViewState extends ConsumerState<LoginView> {
               SizedBox(
                 width: double.infinity,
                 height: 52,
-                child: authState.isLoading
+                child: _isLocalLoading
                     ? const Center(
                         child: CircularProgressIndicator(
                           color: Colors.blueAccent,
                         ),
                       )
                     : ElevatedButton(
-                        // 🎯 এখানে বাটনটি async করা হয়েছে সরাসরি রেসপন্স হ্যান্ডেল করার জন্য
                         onPressed: () async {
                           final email = _emailController.text.trim();
                           final password = _passwordController.text.trim();
@@ -207,14 +216,32 @@ class _LoginViewState extends ConsumerState<LoginView> {
                             return;
                           }
 
-                          // 🚀 কন্ট্রোলার থেকে সরাসরি এরর মেসেজটি রিড করা হচ্ছে
+                          // 🌀 লোকাল লোডিং স্পিনার চালু
+                          setState(() {
+                            _isLocalLoading = true;
+                          });
+
+                          // 🚀 ১. কন্ট্রোলার থেকে অথেন্টিকেশন এবং সিকিউরিটি চেক ট্রাই করা হচ্ছে
                           final errorMsg = await ref
                               .read(authControllerProvider.notifier)
                               .login(email, password);
 
-                          // ⚠️ যদি কোনো এরর মেসেজ আসে, সাথে সাথে পপআপ ডায়ালগটি ওপেন হবে
-                          if (errorMsg != null && context.mounted) {
-                            _showErrorDialog(context, errorMsg);
+                          // 🛑 যদি কোনো ভুল থাকে (ভুল ক্রেডেনশিয়াল, ব্লক স্ট্যাটাস, অথবা এক্সপায়ার্ড প্ল্যান)
+                          if (errorMsg != null) {
+                            if (mounted) {
+                              setState(() {
+                                _isLocalLoading = false;
+                              });
+                              _showErrorDialog(context, errorMsg);
+                            }
+                            return;
+                          }
+
+                          // 🛑 সফলভাবে সমস্ত ভ্যালিডেশন পার হলে লোকাল লোডিং স্পিনার বন্ধ
+                          if (mounted) {
+                            setState(() {
+                              _isLocalLoading = false;
+                            });
                           }
                         },
                         style: ElevatedButton.styleFrom(

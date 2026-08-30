@@ -1,7 +1,7 @@
 // add member view
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart'; // 👈 এটি অবশ্যই লাগবে সেকেন্ডারি অ্যাপের জন্য
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 class AddMemberView extends StatefulWidget {
@@ -54,6 +54,40 @@ class _AddMemberViewState extends State<AddMemberView> {
     super.dispose();
   }
 
+  // 🆔 অটো-ইনক্রিমেন্ট Gym ID তৈরির ফাংশন (GYM-001, GYM-002...)
+  Future<String> _generateNextGymId() async {
+    final counterRef = FirebaseFirestore.instance
+        .collection('settings')
+        .doc('gym_counter');
+
+    return FirebaseFirestore.instance.runTransaction((transaction) async {
+      DocumentSnapshot snapshot = await transaction.get(counterRef);
+
+      int nextId = 1;
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data() as Map<String, dynamic>;
+        nextId = (data['lastId'] ?? 0) + 1;
+      }
+
+      transaction.set(counterRef, {'lastId': nextId}, SetOptions(merge: true));
+      return 'GYM-${nextId.toString().padLeft(3, '0')}';
+    });
+  }
+
+  // 🔒 ফায়ারস্টোরে মোট সাধারণ মেম্বারদের সংখ্যা চেক করার জন্য
+  Future<bool> _isUserLimitReached() async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isNotEqualTo: 'admin')
+          .get();
+
+      return querySnapshot.docs.length >= 100;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // মেম্বার অ্যাড করার মূল ফাংশন
   Future<void> _addMember() async {
     if (!_formKey.currentState!.validate()) return;
@@ -63,15 +97,68 @@ class _AddMemberViewState extends State<AddMemberView> {
     });
 
     try {
+      // 🛑 ধাপ ১: ১০০ ইউজার লিমিট চেক
+      final bool limitReached = await _isUserLimitReached();
+      if (limitReached) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF1A1D29),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+                  SizedBox(width: 8),
+                  Text(
+                    'Limit Reached',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: const Text(
+                'Your gym member limit (100 users) has been reached. Please upgrade your premium plan to add more members.',
+                style: TextStyle(color: Colors.grey),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      color: Colors.purpleAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       final String name = _nameController.text.trim();
       final String email = _emailController.text.trim();
       final String password = _passwordController.text.trim();
 
+      // 📅 তারিখ প্রসেসিং (আজকের দিন = joiningDate)
       final int days = _getDaysFromDuration(_selectedDuration);
-      final DateTime today = DateTime.now();
-      final DateTime expiryDate = today.add(Duration(days: days));
+      final DateTime joiningDate = DateTime.now();
+      final DateTime expiryDate = joiningDate.add(Duration(days: days));
 
-      // 🧠 ট্রিক: সেকেন্ডারি ফায়ারবেস অ্যাপ তৈরি করা যাতে এডমিন লগআউট না হয় এবং সঠিক UID ফায়ারস্টোরে যায়
+      // 🆔 অটো Gym ID তৈরি
+      final String gymId = await _generateNextGymId();
+
+      // 🧠 সেকেন্ডারি ফায়ারবেস অ্যাপ ইনস্ট্যান্স
       String appName = 'SecondaryApp_${DateTime.now().millisecondsSinceEpoch}';
       FirebaseApp secondaryApp = await Firebase.initializeApp(
         name: appName,
@@ -80,40 +167,41 @@ class _AddMemberViewState extends State<AddMemberView> {
 
       FirebaseAuth secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
 
-      // ১. সেকেন্ডারি ইনস্ট্যান্স দিয়ে Firebase Auth-এ মেম্বার তৈরি করা
+      // ১. Firebase Auth-এ ইউজার ক্রিয়েট
       UserCredential userCredential = await secondaryAuth
           .createUserWithEmailAndPassword(email: email, password: password);
 
       final String? newUserId = userCredential.user?.uid;
 
       if (newUserId != null) {
-        // ২. রিয়েল UID ব্যবহার করে ফায়ারস্টোরে 'users' কালেকশনের আন্ডারে নতুন ডকুমেন্ট তৈরি
-        // নিশ্চিত করুন আপনার ইউজার হোম স্ক্রিন এই ফিল্ডগুলোই রিড করছে (uid, planName, expiryDate, isSubscribed)
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(newUserId)
-            .set({
-              'uid': newUserId,
-              'name': name,
-              'email': email,
-              'planName': '$_selectedDuration Pack',
-              'isSubscribed': true,
-              'createdAt': FieldValue.serverTimestamp(),
-              'expiryDate': Timestamp.fromDate(expiryDate),
-            });
+        // ২. ফায়ারস্টোরে auto gymId এবং joiningDate সহ ডাটা সেভ
+        await FirebaseFirestore.instance.collection('users').doc(newUserId).set(
+          {
+            'uid': newUserId,
+            'gymId': gymId, // 👈 Auto Gym ID (e.g. GYM-001)
+            'name': name,
+            'email': email,
+            'role': 'user',
+            'planName': '$_selectedDuration Pack',
+            'isSubscribed': true,
+            'joiningDate': Timestamp.fromDate(
+              joiningDate,
+            ), // 👈 আজকের রেজিস্ট্রেশনের তারিখ
+            'expiryDate': Timestamp.fromDate(expiryDate),
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+        );
 
-        // ক্রিয়েট করা সাময়িক অ্যাপটি ডিলিট করে মেমোরি ক্লিন করা
         await secondaryApp.delete();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Member added to Auth & Database perfectly! 🔥'),
+            SnackBar(
+              content: Text('Member added successfully! ID: $gymId 🔥'),
               backgroundColor: Colors.green,
             ),
           );
 
-          // ফর্ম ক্লিয়ার করে দেওয়া
           _nameController.clear();
           _emailController.clear();
           _passwordController.clear();

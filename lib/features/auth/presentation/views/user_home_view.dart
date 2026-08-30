@@ -1,6 +1,7 @@
-//user home view
+// user home view.dart
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 👈 আসল UID পাওয়ার জন্য ইম্পোর্ট করা হলো
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'user_profile_view.dart';
@@ -64,7 +65,6 @@ class _UserHomeViewState extends ConsumerState<UserHomeView> {
   }
 }
 
-// হোমের ভেতরের মূল ড্যাশবোর্ড ডিজাইন
 class HomeScreenContent extends StatefulWidget {
   const HomeScreenContent({super.key});
 
@@ -74,9 +74,10 @@ class HomeScreenContent extends StatefulWidget {
 
 class _HomeScreenContentState extends State<HomeScreenContent>
     with SingleTickerProviderStateMixin {
-  // ⚡ ডেমো আইডি সরিয়ে এখানে রিয়াল টাইম লগইন করা ইউজারের UID আনা হলো
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-
+  final String currentUserEmail =
+      FirebaseAuth.instance.currentUser?.email ??
+      ""; // 👈 ইমেইল ট্র্যাকের জন্য যোগ করা হলো
   late TabController _tabController;
 
   @override
@@ -91,7 +92,6 @@ class _HomeScreenContentState extends State<HomeScreenContent>
     super.dispose();
   }
 
-  // নোটিশ পঠিত (Read) মার্ক করার ফাংশন
   void _markAsRead(String docId) {
     if (currentUserId.isEmpty) return;
     FirebaseFirestore.instance.collection('notices').doc(docId).update({
@@ -99,9 +99,8 @@ class _HomeScreenContentState extends State<HomeScreenContent>
     });
   }
 
-  // নোটিশের বিস্তারিত দেখানোর পপআপ ডায়ালগ
   void _showNoticeDetails(String docId, String title, String content) {
-    _markAsRead(docId); // ক্লিক করলেই Read মার্ক হবে
+    _markAsRead(docId);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -139,11 +138,98 @@ class _HomeScreenContentState extends State<HomeScreenContent>
     );
   }
 
+  Map<String, dynamic> _calculateBMI(String heightStr, double weight) {
+    if (weight <= 0 || heightStr.isEmpty || heightStr == "0.0") {
+      return {
+        'bmi': 0.0,
+        'status': 'No Data',
+        'color': Colors.grey,
+        'displayHeight': '0\'0"',
+        'waterGoal': '2.5 L',
+        'burnGoal': '350 kcal',
+        'stepsGoal': '6,000',
+      };
+    }
+
+    int feet = 0;
+    int inches = 0;
+
+    try {
+      if (heightStr.contains('.')) {
+        final parts = heightStr.split('.');
+        feet = int.tryParse(parts[0]) ?? 0;
+        inches = int.tryParse(parts[1]) ?? 0;
+      } else {
+        feet = int.tryParse(heightStr) ?? 0;
+      }
+    } catch (e) {
+      print("Height parsing error: $e");
+    }
+
+    int totalInches = (feet * 12) + inches;
+    double heightInMeters = totalInches * 0.0254;
+
+    if (heightInMeters <= 0) {
+      return {
+        'bmi': 0.0,
+        'status': 'No Data',
+        'color': Colors.grey,
+        'displayHeight': '0\'0"',
+        'waterGoal': '2.5 L',
+        'burnGoal': '350 kcal',
+        'stepsGoal': '6,000',
+      };
+    }
+
+    double bmi = weight / pow(heightInMeters, 2);
+
+    String status;
+    Color color;
+    String waterGoal = "3.0 L";
+    String burnGoal = "450 kcal";
+    String stepsGoal = "8,000";
+
+    if (bmi < 18.5) {
+      status = 'Underweight 🦴 (ওজন কম)';
+      color = Colors.orangeAccent;
+      waterGoal = "2.5 L";
+      burnGoal = "350 kcal";
+      stepsGoal = "6,500";
+    } else if (bmi >= 18.5 && bmi < 25.0) {
+      status = 'Normal Weight ✨ (ফিট)';
+      color = Colors.greenAccent;
+      waterGoal = "3.0 L";
+      burnGoal = "450 kcal";
+      stepsGoal = "8,000";
+    } else if (bmi >= 25.0 && bmi < 30.0) {
+      status = 'Overweight ⚠️ (বাড়তি ওজন)';
+      color = Colors.amberAccent;
+      waterGoal = "3.5 L";
+      burnGoal = "550 kcal";
+      stepsGoal = "10,000";
+    } else {
+      status = 'Obese 🚨 (অতিরিক্ত মেদ)';
+      color = Colors.redAccent;
+      waterGoal = "4.0 L";
+      burnGoal = "650 kcal";
+      stepsGoal = "12,000";
+    }
+
+    return {
+      'bmi': double.parse(bmi.toStringAsFixed(1)),
+      'status': status,
+      'color': color,
+      'displayHeight': "$feet'$inches\"",
+      'waterGoal': waterGoal,
+      'burnGoal': burnGoal,
+      'stepsGoal': stepsGoal,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
-    // যদি কোনো কারণে ইউজার আইডি না পাওয়া যায়
     if (currentUserId.isEmpty) {
       return const Scaffold(
         backgroundColor: Color(0xFF12141C),
@@ -194,9 +280,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                       color: Colors.white,
                       size: 28,
                     ),
-                    onPressed: () {
-                      scaffoldKey.currentState?.openEndDrawer();
-                    },
+                    onPressed: () => scaffoldKey.currentState?.openEndDrawer(),
                   ),
                   if (unreadCount > 0)
                     Positioned(
@@ -230,7 +314,6 @@ class _HomeScreenContentState extends State<HomeScreenContent>
           const SizedBox(width: 8),
         ],
       ),
-
       endDrawer: Drawer(
         backgroundColor: const Color(0xFF12141C),
         child: SafeArea(
@@ -263,20 +346,17 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                   ],
                 ),
               ),
-
               TabBar(
                 controller: _tabController,
                 indicatorColor: Colors.purpleAccent,
                 labelColor: Colors.purpleAccent,
                 unselectedLabelColor: Colors.grey,
-                indicatorSize: TabBarIndicatorSize.tab,
                 tabs: const [
                   Tab(text: 'All'),
                   Tab(text: 'Unread'),
                   Tab(text: 'Read'),
                 ],
               ),
-
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
@@ -299,9 +379,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                         ),
                       );
                     }
-
                     final allNotices = snapshot.data!.docs;
-
                     return TabBarView(
                       controller: _tabController,
                       children: [
@@ -317,80 +395,85 @@ class _HomeScreenContentState extends State<HomeScreenContent>
           ),
         ),
       ),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUserId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          String userName = "User";
+          String planName = "No Active Plan";
+          String daysLeftText = "Expired";
+          bool isActive = false;
+          double userWeight = 0.0;
+          String rawHeight = "0.0";
 
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Welcome back! 🔥',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Time to Smash Your Goals',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.blueAccent),
+            );
+          }
 
-            // --- হোমের ভেতরে প্রাইসিং প্ল্যান এবং ডেইজ লেফট (Days Left) কাউন্টার উইজেট 💳 ---
-            StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(currentUserId) // 👈 এখন আসল ইউজারের UID ট্র্যাক করবে
-                  .snapshots(),
-              builder: (context, snapshot) {
-                String planName = "No Active Plan";
-                String daysLeftText = "Expired";
-                bool isActive = false;
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final userData = snapshot.data!.data() as Map<String, dynamic>;
+            userName = userData['name'] ?? "User";
+            planName = userData['planName'] ?? "No Active Plan";
+            isActive = userData['isSubscribed'] ?? false;
+            userWeight =
+                double.tryParse(userData['weight']?.toString() ?? '0') ?? 0.0;
+            rawHeight = userData['height']?.toString() ?? "0.0";
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: LinearProgressIndicator(color: Colors.purpleAccent),
-                  );
-                }
+            if (userData['expiryDate'] != null) {
+              final Timestamp expiryTimestamp = userData['expiryDate'];
+              final DateTime expiryDate = expiryTimestamp.toDate();
+              final DateTime today = DateTime.now();
 
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  final userData =
-                      snapshot.data!.data() as Map<String, dynamic>;
-                  planName = userData['planName'] ?? "No Active Plan";
-                  isActive = userData['isSubscribed'] ?? false;
+              final difference = DateTime(
+                expiryDate.year,
+                expiryDate.month,
+                expiryDate.day,
+              ).difference(DateTime(today.year, today.month, today.day)).inDays;
 
-                  // বাকি দিন হিসাব করার লজিক ⏰
-                  if (userData['expiryDate'] != null) {
-                    final Timestamp expiryTimestamp = userData['expiryDate'];
-                    final DateTime expiryDate = expiryTimestamp.toDate();
-                    final DateTime today = DateTime.now();
+              if (difference > 0 && isActive) {
+                daysLeftText = "$difference Days Remaining";
+              } else if (difference == 0 && isActive) {
+                daysLeftText = "Expires Today! ⚠️";
+              } else {
+                daysLeftText = "Expired / Inactive";
+                isActive = false;
+              }
+            }
+          }
 
-                    final difference =
-                        DateTime(
-                              expiryDate.year,
-                              expiryDate.month,
-                              expiryDate.day,
-                            )
-                            .difference(
-                              DateTime(today.year, today.month, today.day),
-                            )
-                            .inDays;
+          final bmiData = _calculateBMI(rawHeight, userWeight);
 
-                    if (difference > 0 && isActive) {
-                      daysLeftText = "$difference Days Remaining";
-                    } else if (difference == 0 && isActive) {
-                      daysLeftText = "Expires Today! ⚠️";
-                    } else {
-                      daysLeftText = "Expired / Inactive";
-                      isActive = false;
-                    }
-                  }
-                }
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back, $userName! 🔥',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Time to Smash Your Goals',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-                return Container(
+                // ১. মেম্বারশিপ প্ল্যান কার্ড
+                Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -461,104 +544,234 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                       ),
                     ],
                   ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // ওয়ার্কআউট স্ট্যাটাস কার্ড
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Colors.blueAccent, Colors.purpleAccent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Today\'s Workout',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+
+                const SizedBox(height: 16),
+
+                // ২. BMI ক্যালকুলেটর উইজেট
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1D29),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white10),
                   ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Chest & Triceps Day',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.accessibility_new_rounded,
+                                color: bmiData['color'],
+                                size: 22,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Your BMI Status',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            userWeight > 0
+                                ? "${bmiData['displayHeight']} | ${userWeight.toInt()} kg"
+                                : "No Profile Data",
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            bmiData['bmi'].toString(),
+                            style: TextStyle(
+                              color: bmiData['color'],
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              bmiData['status'],
+                              style: TextStyle(
+                                color: bmiData['color'],
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: userWeight > 0
+                              ? (bmiData['bmi'] / 40).clamp(0.0, 1.0)
+                              : 0.0,
+                          backgroundColor: Colors.white10,
+                          color: bmiData['color'],
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 🛠️ ৩. ওয়ার্কআউট প্ল্যানের সাথে কানেক্ট করা ডায়নামিক কার্ড অংশ
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('workout_charts')
+                      .doc(currentUserEmail)
+                      .snapshots(),
+                  builder: (context, workoutSnapshot) {
+                    String routineTitle = "Rest Day 😴";
+                    String routineDuration = "No active scheduled workout";
+
+                    if (workoutSnapshot.hasData &&
+                        workoutSnapshot.data!.exists) {
+                      final workoutData =
+                          workoutSnapshot.data!.data() as Map<String, dynamic>;
+                      routineTitle =
+                          workoutData['workoutTitle'] ?? "Workout Day";
+
+                      // এক্সারসাইজ সংখ্যা কাউন্ট করার মেথড
+                      int exercisesCount = 0;
+                      if (workoutData['exercises'] is List) {
+                        exercisesCount =
+                            (workoutData['exercises'] as List).length;
+                      }
+
+                      final estTime =
+                          workoutData['duration'] ?? "Estimated Time";
+                      routineDuration = exercisesCount > 0
+                          ? "$estTime • $exercisesCount Exercises"
+                          : estTime;
+                    }
+
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Colors.blueAccent, Colors.purpleAccent],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blueAccent.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Today\'s Workout',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            routineTitle,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            routineDuration,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // ৪. একটিভ এবং ডাইনামিক ডেইলি স্ট্যাটাস সেকশন (BMI ভিত্তিক গোল)
+                const Text(
+                  'TODAY\'S TARGET (BASED ON BMI)',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _buildStatCard(
+                      'Burn Goal',
+                      bmiData['burnGoal'],
+                      Icons.local_fire_department_rounded,
+                      Colors.orangeAccent,
                     ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    '60 Mins • 5 Exercises',
-                    style: TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ডেইলি অ্যাক্টিভিটি ট্র্যাক সেকশন
-            const Text(
-              'TODAY\'S STATS',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildStatCard(
-                  'Burned',
-                  '450 kcal',
-                  Icons.local_fire_department_rounded,
-                  Colors.orangeAccent,
-                ),
-                const SizedBox(width: 12),
-                _buildStatCard(
-                  'Water',
-                  '2.5 L',
-                  Icons.water_drop_rounded,
-                  Colors.blueAccent,
-                ),
-                const SizedBox(width: 12),
-                _buildStatCard(
-                  'Steps',
-                  '6,200',
-                  Icons.directions_walk_rounded,
-                  Colors.greenAccent,
+                    const SizedBox(width: 12),
+                    _buildStatCard(
+                      'Water Target',
+                      bmiData['waterGoal'],
+                      Icons.water_drop_rounded,
+                      Colors.blueAccent,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildStatCard(
+                      'Steps Goal',
+                      bmiData['stepsGoal'],
+                      Icons.directions_walk_rounded,
+                      Colors.greenAccent,
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildNoticeList(List<QueryDocumentSnapshot> docs, String filterType) {
     List<QueryDocumentSnapshot> filteredDocs = [];
-
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
       final List readBy = data['readBy'] ?? [];
       final bool isRead = readBy.contains(currentUserId);
-
-      if (filterType == 'all') {
-        filteredDocs.add(doc);
-      } else if (filterType == 'unread' && !isRead) {
-        filteredDocs.add(doc);
-      } else if (filterType == 'read' && isRead) {
+      if (filterType == 'all' ||
+          (filterType == 'unread' && !isRead) ||
+          (filterType == 'read' && isRead)) {
         filteredDocs.add(doc);
       }
     }
@@ -566,7 +779,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
     if (filteredDocs.isEmpty) {
       return Center(
         child: Text(
-          'No ${filterType == 'all' ? '' : filterType} notices found.',
+          'No $filterType notices found.',
           style: const TextStyle(color: Colors.grey),
         ),
       );
@@ -660,14 +873,18 @@ class _HomeScreenContentState extends State<HomeScreenContent>
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               value,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
               ),
             ),
