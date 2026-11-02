@@ -67,14 +67,18 @@ class _AddDietViewState extends State<AddDietView> {
         _clearFormFieldsOnly();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('ডাটা লোড করতে সমস্যা হয়েছে: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ডাটা লোড করতে সমস্যা হয়েছে: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -346,21 +350,25 @@ class _AddDietViewState extends State<AddDietView> {
                             }).toList(),
                             onChanged: (value) {
                               if (value != null) {
-                                final selectedDoc = userDocs.firstWhere(
+                                final matchingDocs = userDocs.where(
                                   (doc) =>
                                       (doc.data()
                                           as Map<String, dynamic>)['email'] ==
                                       value,
                                 );
-                                final selectedData =
-                                    selectedDoc.data() as Map<String, dynamic>;
-                                setState(() {
-                                  _selectedUserEmail = value;
-                                  _selectedUserName =
-                                      selectedData['name'] ?? 'Unknown Member';
-                                });
-                                // ইউজার সিলেক্ট করার সাথে সাথে তার আগের ডায়েট ডাটা রিয়েল-টাইমে লোড হবে
-                                _fetchUserDietData(value);
+                                if (matchingDocs.isNotEmpty) {
+                                  final selectedDoc = matchingDocs.first;
+                                  final selectedData =
+                                      selectedDoc.data()
+                                          as Map<String, dynamic>;
+                                  setState(() {
+                                    _selectedUserEmail = value;
+                                    _selectedUserName =
+                                        selectedData['name'] ??
+                                        'Unknown Member';
+                                  });
+                                  _fetchUserDietData(value);
+                                }
                               }
                             },
                           ),

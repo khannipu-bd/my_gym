@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:1021623584321:android:86155dc3a1786d4b9ea8c0",
+        "android_client_info": {
+          "package_name": "com.codeitech.my_gym"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-b3l6oYxjJGnN1uuzbDTdyjjPQMTfpL4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:1021623584321:android:06727c0db7d3e9e79ea8c0",
         "android_client_info": {
           "package_name": "com.example.my_gym"

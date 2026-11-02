@@ -2,23 +2,68 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/auth_controller.dart';
+import 'workout_hub_view.dart';
+import 'diet_hub_view.dart';
 import 'add_notice_view.dart';
 import 'add_member_view.dart';
-import 'user_home_view.dart';
-import 'add_diet_view.dart';
-import 'add_workout_view.dart';
-import 'manage_members_view.dart'; // 👈 মেম্বার ম্যানেজমেন্ট ভিউ
-import 'admin_trainer_management_view.dart'; // 👈 নতুন ট্রেইনার ম্যানেজমেন্ট ফাইলটি ইম্পোর্ট করা হলো
+import 'manage_members_view.dart';
+import 'admin_trainer_management_view.dart';
+// 🚀 আপনার AppUpdateService ফাইলের সঠিক ইমপোর্ট পাথটি নিশ্চিত করুন
+import '../../../../core/services/app_update_service.dart';
 
-class AdminDashboardView extends ConsumerWidget {
+class AdminDashboardView extends ConsumerStatefulWidget {
   const AdminDashboardView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminDashboardView> createState() => _AdminDashboardViewState();
+}
+
+class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
+  @override
+  void initState() {
+    super.initState();
+    // 🔔 এডমিন ড্যাশবোর্ডে আসতেই ইন-অ্যাপ আপডেট চেক করা হবে
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateService.checkForUpdate(context);
+    });
+  }
+
+  // 🔴 লগআউট নিশ্চিতকরণ ডায়ালগ
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D29),
+        title: const Text(
+          'Confirm Logout',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to log out from the Admin Dashboard?',
+          style: TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(authControllerProvider.notifier).logout();
+            },
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFF12141C,
-      ), // থিমের সাথে মিলিয়ে ডার্ক ব্যাকগ্রাউন্ড
+      backgroundColor: const Color(0xFF12141C),
       appBar: AppBar(
         title: const Text(
           'Admin Dashboard',
@@ -28,27 +73,10 @@ class AdminDashboardView extends ConsumerWidget {
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // ১. ইউজার অ্যাপ বা মেম্বার স্ক্রিন কেমন দেখায় তা টেস্ট করার বাটন
-          /*TextButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const UserHomeView()),
-              );
-            },
-            icon: const Icon(Icons.remove_red_eye, color: Colors.blueAccent),
-            label: const Text(
-              'User View',
-              style: TextStyle(
-                color: Colors.blueAccent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),*/
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
             tooltip: 'Logout',
-            onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+            onPressed: () => _showLogoutDialog(context, ref),
           ),
         ],
       ),
@@ -80,9 +108,8 @@ class AdminDashboardView extends ConsumerWidget {
                 mainAxisSpacing: 16,
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  // ১. ওয়ার্কআউট প্ল্যান আপডেট (🏋️‍♂️)
+                  // ১. ওয়ার্কআউট প্ল্যান
                   _buildDashboardCard(
-                    context: context,
                     title: 'Workout Plans',
                     icon: Icons.fitness_center_rounded,
                     color: Colors.blueAccent,
@@ -90,15 +117,14 @@ class AdminDashboardView extends ConsumerWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AddWorkoutView(),
+                          builder: (context) => const WorkoutHubView(),
                         ),
                       );
                     },
                   ),
 
-                  // ২. ডায়েট চার্ট আপডেট (🥗)
+                  // ২. ডায়েট চার্ট
                   _buildDashboardCard(
-                    context: context,
                     title: 'Diet Charts',
                     icon: Icons.restaurant_menu_rounded,
                     color: Colors.green,
@@ -106,15 +132,14 @@ class AdminDashboardView extends ConsumerWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AddDietView(),
+                          builder: (context) => const DietHubView(),
                         ),
                       );
                     },
                   ),
 
-                  // ৩. পুশ নোটিশ / অ্যানাউন্समেন্ট (📢)
+                  // ৩. পুশ নোটিশ / অ্যানাউন্সমেন্ট
                   _buildDashboardCard(
-                    context: context,
                     title: 'Push Notices',
                     icon: Icons.campaign_rounded,
                     color: Colors.purple,
@@ -128,9 +153,8 @@ class AdminDashboardView extends ConsumerWidget {
                     },
                   ),
 
-                  // ৪. জিম মেম্বারদের লিস্ট ও প্রোফাইল দেখা (👤🔍)
+                  // ৪. জিম মেম্বারদের লিস্ট
                   _buildDashboardCard(
-                    context: context,
                     title: 'Gym Members',
                     icon: Icons.group_rounded,
                     color: Colors.teal,
@@ -144,9 +168,8 @@ class AdminDashboardView extends ConsumerWidget {
                     },
                   ),
 
-                  // ৫. মেম্বার ম্যানুয়াল রেজিস্ট্রেশন (➕)
+                  // ৫. মেম্বার রেজিস্ট্রেশন
                   _buildDashboardCard(
-                    context: context,
                     title: 'Add New Member',
                     icon: Icons.person_add_alt_1_rounded,
                     color: Colors.blueGrey,
@@ -160,9 +183,8 @@ class AdminDashboardView extends ConsumerWidget {
                     },
                   ),
 
-                  // 🏋️‍♂️ ৬. নতুন ট্রেইনার ম্যানেজমেন্ট কার্ড (Manage Trainers)
+                  // ৬. ট্রেইনার ম্যানেজমেন্ট
                   _buildDashboardCard(
-                    context: context,
                     title: 'Manage Trainers',
                     icon: Icons.psychology_alt_rounded,
                     color: Colors.deepOrangeAccent,
@@ -185,20 +207,19 @@ class AdminDashboardView extends ConsumerWidget {
     );
   }
 
+  // কার্ড উইজেট হেলপার
   Widget _buildDashboardCard({
-    required BuildContext context,
     required String title,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             gradient: LinearGradient(
@@ -206,6 +227,13 @@ class AdminDashboardView extends ConsumerWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

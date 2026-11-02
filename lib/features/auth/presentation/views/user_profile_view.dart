@@ -281,8 +281,9 @@ class UserProfileView extends ConsumerWidget {
 
           // 📅 dynamic Join Date
           String joinDateText = 'N/A';
-          if (userData['joiningDate'] != null) {
-            final Timestamp joinTimestamp = userData['joiningDate'];
+          if (userData['joiningDate'] is Timestamp) {
+            final Timestamp joinTimestamp =
+                userData['joiningDate'] as Timestamp;
             final DateTime joinDate = joinTimestamp.toDate();
             joinDateText = DateFormat('dd MMM yyyy').format(joinDate);
           }

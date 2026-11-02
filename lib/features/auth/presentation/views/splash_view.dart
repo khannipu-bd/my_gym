@@ -28,14 +28,13 @@ class _SplashViewState extends ConsumerState<SplashView> {
   }
 
   void _checkAuthStatus() {
-    // কন্ট্রোলার থেকে কারেন্ট ইউজারের ডেটা রিড করা হচ্ছে
     final authState = ref.read(authControllerProvider);
 
     authState.when(
       data: (user) {
+        if (!mounted) return;
         if (user != null) {
-          if (user.email == 'admin@gym.com') {
-            // অ্যাডমিন ইমেইল চেক
+          if (user.role == 'admin' || user.email == 'admin@gym.com') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -52,13 +51,20 @@ class _SplashViewState extends ConsumerState<SplashView> {
           _goToLogin();
         }
       },
-      error: (_, __) =>
-          _goToLogin(), // এরর আসলেও সেফটি হিসেবে লগইন স্ক্রিনে পাঠাবে
-      loading: () => _goToLogin(),
+      error: (_, __) {
+        if (mounted) _goToLogin();
+      },
+      loading: () {
+        // If still loading after timer, retry after short delay
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _checkAuthStatus();
+        });
+      },
     );
   }
 
   void _goToLogin() {
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginView()),

@@ -1,4 +1,4 @@
-// user home view.dart
+// user_home_view.dart
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'user_profile_view.dart';
 import 'user_diet_view.dart';
 import 'user_workout_view.dart';
+// 🚀 আপনার AppUpdateService ফাইলের সঠিক ইমপোর্ট পাথটি নিচে দিন
+import '../../../../core/services/app_update_service.dart';
 
 class UserHomeView extends ConsumerStatefulWidget {
   const UserHomeView({super.key});
@@ -24,6 +26,15 @@ class _UserHomeViewState extends ConsumerState<UserHomeView> {
     const UserDietView(),
     const UserProfileView(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔔 ইউজার হোম পেজে আসতেই ইন-অ্যাপ আপডেট চেক করা হবে
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateService.checkForUpdate(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,8 +87,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
     with SingleTickerProviderStateMixin {
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
   final String currentUserEmail =
-      FirebaseAuth.instance.currentUser?.email ??
-      ""; // 👈 ইমেইল ট্র্যাকের জন্য যোগ করা হলো
+      FirebaseAuth.instance.currentUser?.email ?? "";
   late TabController _tabController;
 
   @override
@@ -163,7 +173,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
         feet = int.tryParse(heightStr) ?? 0;
       }
     } catch (e) {
-      print("Height parsing error: $e");
+      debugPrint("Height parsing error: $e");
     }
 
     int totalInches = (feet * 12) + inches;
@@ -423,8 +433,9 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                 double.tryParse(userData['weight']?.toString() ?? '0') ?? 0.0;
             rawHeight = userData['height']?.toString() ?? "0.0";
 
-            if (userData['expiryDate'] != null) {
-              final Timestamp expiryTimestamp = userData['expiryDate'];
+            if (userData['expiryDate'] is Timestamp) {
+              final Timestamp expiryTimestamp =
+                  userData['expiryDate'] as Timestamp;
               final DateTime expiryDate = expiryTimestamp.toDate();
               final DateTime today = DateTime.now();
 
@@ -636,7 +647,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
 
                 const SizedBox(height: 24),
 
-                // 🛠️ ৩. ওয়ার্কআউট প্ল্যানের সাথে কানেক্ট করা ডায়নামিক কার্ড অংশ
+                // ৩. ওয়ার্কআউট প্ল্যান অংশ
                 StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('workout_charts')
@@ -653,7 +664,6 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                       routineTitle =
                           workoutData['workoutTitle'] ?? "Workout Day";
 
-                      // এক্সারসাইজ সংখ্যা কাউন্ট করার মেথড
                       int exercisesCount = 0;
                       if (workoutData['exercises'] is List) {
                         exercisesCount =
@@ -720,7 +730,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
 
                 const SizedBox(height: 24),
 
-                // ৪. একটিভ এবং ডাইনামিক ডেইলি স্ট্যাটাস সেকশন (BMI ভিত্তিক গোল)
+                // ৪. ডেইলি স্ট্যাটাস সেকশন
                 const Text(
                   'TODAY\'S TARGET (BASED ON BMI)',
                   style: TextStyle(

@@ -7,10 +7,15 @@ class UserNoticeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF12141C),
       appBar: AppBar(
-        title: const Text('Gym Announcements'),
-        backgroundColor: Colors.purple,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Gym Announcements',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF1A1D29),
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
         // ফায়ারস্টোরের 'notices' কালেকশন থেকে সময় অনুযায়ী লেটেস্ট নোটিশ আগে আনবে
@@ -20,10 +25,17 @@ class UserNoticeView extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.white),
+              ),
+            );
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.purpleAccent),
+            );
           }
 
           final docs = snapshot.data?.docs ?? [];
@@ -39,6 +51,7 @@ class UserNoticeView extends StatelessWidget {
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
+            physics: const BouncingScrollPhysics(),
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
@@ -46,26 +59,32 @@ class UserNoticeView extends StatelessWidget {
               final content = data['content'] ?? 'No Content';
 
               return Card(
+                color: const Color(0xFF1A1D29),
                 elevation: 3,
                 margin: const EdgeInsets.only(bottom: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: ExpansionTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.purple,
-                    child: Icon(Icons.campaign, color: Colors.white),
+                  backgroundColor: const Color(0xFF1A1D29),
+                  collapsedBackgroundColor: const Color(0xFF1A1D29),
+                  iconColor: Colors.purpleAccent,
+                  collapsedIconColor: Colors.grey,
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.purpleAccent.withValues(alpha: 0.15),
+                    child: const Icon(Icons.campaign, color: Colors.purpleAccent),
                   ),
                   title: Text(
                     title,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
+                      color: Colors.white,
                     ),
                   ),
                   subtitle: const Text(
                     'Tap to read full notice',
-                    style: TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   children: [
                     Padding(
@@ -81,7 +100,7 @@ class UserNoticeView extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 15,
                             height: 1.4,
-                            color: Colors.black87,
+                            color: Color(0xFFE2E8F0),
                           ),
                         ),
                       ),

@@ -160,54 +160,62 @@ class _AddMemberViewState extends State<AddMemberView> {
 
       // 🧠 সেকেন্ডারি ফায়ারবেস অ্যাপ ইনস্ট্যান্স
       String appName = 'SecondaryApp_${DateTime.now().millisecondsSinceEpoch}';
-      FirebaseApp secondaryApp = await Firebase.initializeApp(
-        name: appName,
-        options: Firebase.app().options,
-      );
-
-      FirebaseAuth secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
-
-      // ১. Firebase Auth-এ ইউজার ক্রিয়েট
-      UserCredential userCredential = await secondaryAuth
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      final String? newUserId = userCredential.user?.uid;
-
-      if (newUserId != null) {
-        // ২. ফায়ারস্টোরে auto gymId এবং joiningDate সহ ডাটা সেভ
-        await FirebaseFirestore.instance.collection('users').doc(newUserId).set(
-          {
-            'uid': newUserId,
-            'gymId': gymId, // 👈 Auto Gym ID (e.g. GYM-001)
-            'name': name,
-            'email': email,
-            'role': 'user',
-            'planName': '$_selectedDuration Pack',
-            'isSubscribed': true,
-            'joiningDate': Timestamp.fromDate(
-              joiningDate,
-            ), // 👈 আজকের রেজিস্ট্রেশনের তারিখ
-            'expiryDate': Timestamp.fromDate(expiryDate),
-            'createdAt': FieldValue.serverTimestamp(),
-          },
+      FirebaseApp? secondaryApp;
+      try {
+        secondaryApp = await Firebase.initializeApp(
+          name: appName,
+          options: Firebase.app().options,
         );
 
-        await secondaryApp.delete();
+        FirebaseAuth secondaryAuth = FirebaseAuth.instanceFor(
+          app: secondaryApp,
+        );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Member added successfully! ID: $gymId 🔥'),
-              backgroundColor: Colors.green,
-            ),
-          );
+        // ১. Firebase Auth-এ ইউজার ক্রিয়েট
+        UserCredential userCredential = await secondaryAuth
+            .createUserWithEmailAndPassword(email: email, password: password);
 
-          _nameController.clear();
-          _emailController.clear();
-          _passwordController.clear();
-          setState(() {
-            _selectedDuration = '1 Month';
-          });
+        final String? newUserId = userCredential.user?.uid;
+
+        if (newUserId != null) {
+          // ২. ফায়ারস্টোরে auto gymId এবং joiningDate সহ ডাটা সেভ
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(newUserId)
+              .set({
+                'uid': newUserId,
+                'gymId': gymId, // 👈 Auto Gym ID (e.g. GYM-001)
+                'name': name,
+                'email': email,
+                'role': 'user',
+                'planName': '$_selectedDuration Pack',
+                'isSubscribed': true,
+                'joiningDate': Timestamp.fromDate(
+                  joiningDate,
+                ), // 👈 আজকের রেজিস্ট্রেশনের তারিখ
+                'expiryDate': Timestamp.fromDate(expiryDate),
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Member added successfully! ID: $gymId 🔥'),
+                backgroundColor: Colors.green,
+              ),
+            );
+
+            _nameController.clear();
+            _emailController.clear();
+            _passwordController.clear();
+            setState(() {
+              _selectedDuration = '1 Month';
+            });
+          }
+        }
+      } finally {
+        if (secondaryApp != null) {
+          await secondaryApp.delete();
         }
       }
     } on FirebaseAuthException catch (e) {

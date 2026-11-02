@@ -6,11 +6,11 @@
         path="." />
 
     <files-path
-        name="files"
+        name="internal_apk_storage"
         path="." />
 
     <external-path
         name="external"
-        path="." />
+        path="ota_update/" />
 
 </paths>

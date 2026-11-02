@@ -33,17 +33,21 @@ class _AdminTrainerManagementViewState
       _phoneController.clear();
       _experienceController.clear();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trainer Added Successfully! 🎉')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Trainer Added Successfully! 🎉')),
+        );
+      }
     }
   }
 
   void _deleteTrainer(String id) async {
     await FirebaseFirestore.instance.collection('trainers').doc(id).delete();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Trainer Removed! ❌')));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Trainer Removed! ❌')));
+    }
   }
 
   @override
@@ -141,12 +145,13 @@ class _AdminTrainerManagementViewState
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(
                       color: Colors.purpleAccent,
                     ),
                   );
+                }
                 final trainers = snapshot.data!.docs;
                 if (trainers.isEmpty) {
                   return const Text(

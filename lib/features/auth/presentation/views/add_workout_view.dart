@@ -185,14 +185,18 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
         _resetFormFieldsOnly();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('ডাটা লোড করতে সমস্যা হয়েছে: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ডাটা লোড করতে সমস্যা হয়েছে: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -526,20 +530,25 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
                             }).toList(),
                             onChanged: (value) {
                               if (value != null) {
-                                final selectedDoc = userDocs.firstWhere(
+                                final matchingDocs = userDocs.where(
                                   (doc) =>
                                       (doc.data()
                                           as Map<String, dynamic>)['email'] ==
                                       value,
                                 );
-                                final selectedData =
-                                    selectedDoc.data() as Map<String, dynamic>;
-                                setState(() {
-                                  _selectedUserEmail = value;
-                                  _selectedUserName =
-                                      selectedData['name'] ?? 'Unknown Member';
-                                });
-                                _fetchUserWorkoutData(value);
+                                if (matchingDocs.isNotEmpty) {
+                                  final selectedDoc = matchingDocs.first;
+                                  final selectedData =
+                                      selectedDoc.data()
+                                          as Map<String, dynamic>;
+                                  setState(() {
+                                    _selectedUserEmail = value;
+                                    _selectedUserName =
+                                        selectedData['name'] ??
+                                        'Unknown Member';
+                                  });
+                                  _fetchUserWorkoutData(value);
+                                }
                               }
                             },
                           ),

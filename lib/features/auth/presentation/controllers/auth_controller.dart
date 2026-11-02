@@ -17,7 +17,7 @@ AuthRepository authRepository(AuthRepositoryRef ref) {
 class AuthController extends _$AuthController {
   @override
   FutureOr<UserEntity?> build() async {
-    final repoUser = await ref.read(authRepositoryProvider).getCurrentUser();
+    final repoUser = await ref.watch(authRepositoryProvider).getCurrentUser();
 
     if (repoUser != null) {
       final userDoc = await FirebaseFirestore.instance
@@ -33,7 +33,7 @@ class AuthController extends _$AuthController {
       final userData = userDoc.data() as Map<String, dynamic>;
 
       // 🔒 ১. অ্যাপ ওপেন হওয়ার সময় ব্লক স্ট্যাটাস চেক
-      final bool isBlocked = userData['isBlocked'] ?? false;
+      final bool isBlocked = userData['isBlocked'] == true;
       if (isBlocked) {
         await fb_auth.FirebaseAuth.instance.signOut();
         return null;
@@ -41,8 +41,8 @@ class AuthController extends _$AuthController {
 
       // ⏰ ২. অ্যাপ ওপেন হওয়ার সময় প্ল্যান এক্সপায়ারি চেক (এডমিন বাদে সাধারণ ইউজারদের জন্য)
       final String role = userData['role'] ?? 'user';
-      if (role != 'admin' && userData['expiryDate'] != null) {
-        final Timestamp expiryTimestamp = userData['expiryDate'];
+      if (role != 'admin' && userData['expiryDate'] is Timestamp) {
+        final Timestamp expiryTimestamp = userData['expiryDate'] as Timestamp;
         final DateTime expiryDate = expiryTimestamp.toDate();
         final DateTime today = DateTime.now();
 
@@ -52,7 +52,7 @@ class AuthController extends _$AuthController {
           expiryDate.day,
         ).difference(DateTime(today.year, today.month, today.day)).inDays;
 
-        final bool isSubscribed = userData['isSubscribed'] ?? false;
+        final bool isSubscribed = userData['isSubscribed'] == true;
 
         if (difference < 0 || !isSubscribed) {
           await fb_auth.FirebaseAuth.instance.signOut();
@@ -86,7 +86,7 @@ class AuthController extends _$AuthController {
         final userData = userDoc.data() as Map<String, dynamic>;
 
         // 🚨 ২. অ্যাকাউন্ট এডমিন ব্লক করেছে কি না চেক
-        final bool isBlocked = userData['isBlocked'] ?? false;
+        final bool isBlocked = userData['isBlocked'] == true;
         if (isBlocked) {
           await fb_auth.FirebaseAuth.instance.signOut();
           state = const AsyncValue.data(null);
@@ -95,8 +95,8 @@ class AuthController extends _$AuthController {
 
         // 🚨 ৩. মেম্বারশিপ প্ল্যান এক্সপায়ার হয়েছে কি না চেক (এডমিন বাদে সাধারণ মেম্বারদের জন্য)
         final String role = userData['role'] ?? 'user';
-        if (role != 'admin' && userData['expiryDate'] != null) {
-          final Timestamp expiryTimestamp = userData['expiryDate'];
+        if (role != 'admin' && userData['expiryDate'] is Timestamp) {
+          final Timestamp expiryTimestamp = userData['expiryDate'] as Timestamp;
           final DateTime expiryDate = expiryTimestamp.toDate();
           final DateTime today = DateTime.now();
 
@@ -107,7 +107,7 @@ class AuthController extends _$AuthController {
             expiryDate.day,
           ).difference(DateTime(today.year, today.month, today.day)).inDays;
 
-          final bool isSubscribed = userData['isSubscribed'] ?? false;
+          final bool isSubscribed = userData['isSubscribed'] == true;
 
           if (difference < 0 || !isSubscribed) {
             await fb_auth.FirebaseAuth.instance.signOut();

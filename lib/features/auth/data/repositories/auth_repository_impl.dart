@@ -47,7 +47,7 @@ class AuthRepositoryImpl implements AuthRepository {
           uid: uid,
           email: fallbackEmail,
           name: 'New User',
-          role: 'admin', // যেহেতু আপনি প্রথম ইউজার এবং অ্যাডমিন হতে চান
+          role: fallbackEmail == 'admin@gym.com' ? 'admin' : 'user',
         );
       }
 

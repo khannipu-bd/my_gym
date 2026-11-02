@@ -78,6 +78,104 @@ class ManageMembersView extends StatelessWidget {
     }
   }
 
+  // মেম্বার স্থায়ীভাবে মুছে ফেলার (Delete User) ফাংশন
+  Future<void> _deleteUser(
+    BuildContext context,
+    String userId,
+    String userName,
+    String userEmail,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D29),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Delete User ⚠️',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete this member? This action cannot be undone.',
+          style: TextStyle(color: Color(0xFFE2E8F0)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!context.mounted) return;
+
+      // লোডিং ইন্ডিকেটর ডায়ালগ দেখানো
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Colors.redAccent),
+        ),
+      );
+
+      try {
+        // ১. users কালেকশন থেকে ইউজারের ডকুমেন্ট ডিলেট
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .delete();
+
+        // ২. ডায়েট ও ওয়ার্কআউট চার্টের সম্পর্কিত ডাটা ক্লিনআপ (email ও docId সাপেক্ষে)
+        if (userEmail.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('workout_charts')
+              .doc(userEmail)
+              .delete();
+          await FirebaseFirestore.instance
+              .collection('diet_charts')
+              .doc(userEmail)
+              .delete();
+        }
+        if (userId != userEmail) {
+          await FirebaseFirestore.instance
+              .collection('workout_charts')
+              .doc(userId)
+              .delete();
+          await FirebaseFirestore.instance
+              .collection('diet_charts')
+              .doc(userId)
+              .delete();
+        }
+
+        if (context.mounted) {
+          Navigator.pop(context); // লোডিং ডায়ালগ বন্ধ করা
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Member deleted permanently from database'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.pop(context); // লোডিং ডায়ালগ বন্ধ করা
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete member: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,8 +335,9 @@ class ManageMembersView extends StatelessWidget {
                     final gymId = data['gymId'] ?? 'N/A';
                     String joinDateText = 'N/A';
 
-                    if (data['joiningDate'] != null) {
-                      final Timestamp joinTimestamp = data['joiningDate'];
+                    if (data['joiningDate'] is Timestamp) {
+                      final Timestamp joinTimestamp =
+                          data['joiningDate'] as Timestamp;
                       final DateTime joinDate = joinTimestamp.toDate();
                       joinDateText = DateFormat('dd MMM yyyy').format(joinDate);
                     }
@@ -253,15 +352,16 @@ class ManageMembersView extends StatelessWidget {
                     final gender = data['gender'] ?? 'N/A';
                     final goal = data['goal'] ?? 'N/A';
 
-                    final bool isBlocked = data['isBlocked'] ?? false;
+                    final bool isBlocked = data['isBlocked'] == true;
 
                     // ⏰ প্ল্যান ও বাকি দিন হিসাব
                     final String planName = data['planName'] ?? 'No Plan';
-                    bool isActive = data['isSubscribed'] ?? false;
+                    bool isActive = data['isSubscribed'] == true;
                     String daysLeftText = "Expired";
 
-                    if (data['expiryDate'] != null) {
-                      final Timestamp expiryTimestamp = data['expiryDate'];
+                    if (data['expiryDate'] is Timestamp) {
+                      final Timestamp expiryTimestamp =
+                          data['expiryDate'] as Timestamp;
                       final DateTime expiryDate = expiryTimestamp.toDate();
                       final DateTime today = DateTime.now();
 
@@ -552,7 +652,42 @@ class ManageMembersView extends StatelessWidget {
                                             : Colors.redAccent,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // 🗑️ মেম্বার ডিলিট (Delete User) বাটন
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 40,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _deleteUser(
+                                      context,
+                                      docId,
+                                      name,
+                                      email,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: Colors.redAccent,
+                                      size: 18,
+                                    ),
+                                    label: const Text(
+                                      'Delete User',
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: Colors.redAccent,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
                                     ),
                                   ),

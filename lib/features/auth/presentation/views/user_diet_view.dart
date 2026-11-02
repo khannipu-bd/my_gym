@@ -90,6 +90,7 @@ class UserDietView extends StatelessWidget {
           final breakfastMap = getMealData('breakfast');
           final lunchMap = getMealData('lunch');
           final dinnerMap = getMealData('dinner');
+          final snackMap = getMealData('snack');
 
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -156,6 +157,23 @@ class UserDietView extends StatelessWidget {
                 startColor: const Color(0xFF7E57C2),
                 endColor: const Color(0xFF5E35B1),
               ),
+
+              // ৪. স্ন্যাকস কার্ড (যদি যুক্ত করা হয়ে থাকে)
+              if ((snackMap['food'] ?? '').isNotEmpty &&
+                  snackMap['food'] != 'Not specified') ...[
+                const SizedBox(height: 16),
+                _buildDietCard(
+                  mealTitle: 'Snack / Evening',
+                  banglaTitle: 'বিকেলের খাবার / নাস্তা',
+                  timeRange: '05:00 - 06:00 PM',
+                  description: snackMap['food'] ?? 'Not specified',
+                  note: snackMap['note'] ?? '',
+                  kcal: snackMap['kcal'] ?? '',
+                  icon: Icons.local_cafe_rounded,
+                  startColor: const Color(0xFF26A69A),
+                  endColor: const Color(0xFF00897B),
+                ),
+              ],
               const SizedBox(height: 24),
             ],
           );
