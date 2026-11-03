@@ -185,7 +185,7 @@ class _CreateDietTemplateViewState
                       color: const Color(0xFF1A1D29),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.greenAccent.withOpacity(0.3),
+                        color: Colors.greenAccent.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -222,7 +222,7 @@ class _CreateDietTemplateViewState
                             hintText:
                                 'e.g., Keto Cut, High Protein Bulk, Weight Loss Clean',
                             hintStyle: TextStyle(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               fontSize: 13,
                             ),
                             filled: true,
@@ -234,7 +234,7 @@ class _CreateDietTemplateViewState
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.05),
+                                color: Colors.white.withValues(alpha: 0.05),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
@@ -354,7 +354,7 @@ class _CreateDietTemplateViewState
       decoration: BoxDecoration(
         color: const Color(0xFF1A1D29),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,13 +439,16 @@ class _CreateDietTemplateViewState
       labelText: label,
       labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.white.withOpacity(0.15), fontSize: 13),
+      hintStyle: TextStyle(
+        color: Colors.white.withValues(alpha: 0.15),
+        fontSize: 13,
+      ),
       filled: true,
       fillColor: const Color(0xFF12141C),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.02)),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.02)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),

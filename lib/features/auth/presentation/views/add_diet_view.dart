@@ -105,6 +105,7 @@ class _AddDietViewState extends State<AddDietView> {
           ),
           TextButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               setState(() => _isLoading = true);
               try {
@@ -113,26 +114,24 @@ class _AddDietViewState extends State<AddDietView> {
                     .doc(_selectedUserEmail)
                     .delete();
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '$_selectedUserName এর ডায়েট চার্টটি ডিলিট করা হয়েছে। 🧹',
-                      ),
-                      backgroundColor: Colors.orangeAccent,
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '$_selectedUserName এর ডায়েট চার্টটি ডিলিট করা হয়েছে। 🧹',
                     ),
-                  );
-                  _clearFullForm();
-                }
+                    backgroundColor: Colors.orangeAccent,
+                  ),
+                );
+                _clearFullForm();
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('ডিলিট করতে সমস্যা হয়েছে: $e'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                }
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('ডিলিট করতে সমস্যা হয়েছে: $e'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
               } finally {
                 if (mounted) setState(() => _isLoading = false);
               }
@@ -448,7 +447,7 @@ class _AddDietViewState extends State<AddDietView> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1D29),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,13 +525,16 @@ class _AddDietViewState extends State<AddDietView> {
       labelText: label,
       labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.white.withOpacity(0.15), fontSize: 13),
+      hintStyle: TextStyle(
+        color: Colors.white.withValues(alpha: 0.15),
+        fontSize: 13,
+      ),
       filled: true,
       fillColor: const Color(0xFF12141C),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.02)),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.02)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),

@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <application
-        android:label="Spartan Gym"
+        android:label="Spartan GYM"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
 
@@ -50,7 +50,29 @@
             android:value="2" />
     </application>
 
+    <!-- 🔗 বাহ্যিক অ্যাপ লঞ্চিং (WhatsApp, Facebook/Browser, Phone Call) এর জন্য সঠিক Queries -->
     <queries>
+        <!-- ব্রাউজার ও ওয়েব ইউআরএল (HTTPS) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+
+        <!-- সরাসরি ফোন কল ডায়াল -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+
+        <!-- হোয়াটসঅ্যাপ প্যাকেজ কুয়েরি -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+
+        <!-- টেক্সট প্রসেসিং -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

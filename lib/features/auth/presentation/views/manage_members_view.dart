@@ -5,39 +5,423 @@ import 'package:intl/intl.dart';
 class ManageMembersView extends StatelessWidget {
   const ManageMembersView({super.key});
 
-  // 🟢 Approve Pending Member
+  // 🟢 Approve Pending Member with Membership Package Modal Sheet
   Future<void> _approveMember(
     BuildContext context,
     String docId,
-    String userName,
-  ) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(docId).update({
-        'status': 'approved',
-        'isSubscribed': true,
-        'approvedAt': FieldValue.serverTimestamp(),
-      });
+    String userName, {
+    String userEmail = '',
+  }) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        int selectedDays = 30;
+        String selectedPackageName = '1 Month Pack';
+        int customDaysInput = 30;
+        final customDaysController = TextEditingController();
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '$userName has been approved as an active gym member! 🟢',
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            final DateTime now = DateTime.now();
+            final DateTime expiryDate = now.add(Duration(days: selectedDays));
+            final String startDateStr = DateFormat('dd MMM yyyy').format(now);
+            final String expiryDateStr = DateFormat(
+              'dd MMM yyyy',
+            ).format(expiryDate);
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A1D29),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border(top: BorderSide(color: Colors.white10)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[600],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Assign Membership Plan',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$userName${userEmail.isNotEmpty ? ' • $userEmail' : ''}',
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.grey),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const Divider(color: Colors.white10, height: 20),
+                      const Text(
+                        'SELECT PACKAGE DURATION',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Package Options List
+                      _buildPackageOptionTile(
+                        title: '1 Month Pack (30 Days)',
+                        days: 30,
+                        packageName: '1 Month Pack',
+                        isSelected:
+                            selectedDays == 30 &&
+                            selectedPackageName == '1 Month Pack',
+                        onTap: () {
+                          setModalState(() {
+                            selectedDays = 30;
+                            selectedPackageName = '1 Month Pack';
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPackageOptionTile(
+                        title: '3 Months Pack (90 Days)',
+                        days: 90,
+                        packageName: '3 Months Pack',
+                        isSelected:
+                            selectedDays == 90 &&
+                            selectedPackageName == '3 Months Pack',
+                        onTap: () {
+                          setModalState(() {
+                            selectedDays = 90;
+                            selectedPackageName = '3 Months Pack';
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPackageOptionTile(
+                        title: '6 Months Pack (180 Days)',
+                        days: 180,
+                        packageName: '6 Months Pack',
+                        isSelected:
+                            selectedDays == 180 &&
+                            selectedPackageName == '6 Months Pack',
+                        onTap: () {
+                          setModalState(() {
+                            selectedDays = 180;
+                            selectedPackageName = '6 Months Pack';
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPackageOptionTile(
+                        title: '1 Year Pack (365 Days)',
+                        days: 365,
+                        packageName: '1 Year Pack',
+                        isSelected:
+                            selectedDays == 365 &&
+                            selectedPackageName == '1 Year Pack',
+                        onTap: () {
+                          setModalState(() {
+                            selectedDays = 365;
+                            selectedPackageName = '1 Year Pack';
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPackageOptionTile(
+                        title: 'Custom Days',
+                        days: customDaysInput,
+                        packageName: 'Custom Pack',
+                        isSelected: selectedPackageName.startsWith('Custom'),
+                        onTap: () {
+                          setModalState(() {
+                            selectedPackageName =
+                                'Custom ($customDaysInput Days)';
+                            selectedDays = customDaysInput;
+                          });
+                        },
+                      ),
+
+                      if (selectedPackageName.startsWith('Custom')) ...[
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: customDaysController,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Enter number of days (e.g. 15, 45, 60)',
+                            hintStyle: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFF12141C),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.edit_calendar,
+                              color: Colors.blueAccent,
+                            ),
+                          ),
+                          onChanged: (val) {
+                            final parsed = int.tryParse(val) ?? 30;
+                            setModalState(() {
+                              customDaysInput = parsed.clamp(1, 3650);
+                              selectedDays = customDaysInput;
+                              selectedPackageName =
+                                  'Custom ($customDaysInput Days)';
+                            });
+                          },
+                        ),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      // Validity Preview Card
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF12141C),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.event_available_rounded,
+                              color: Colors.greenAccent,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Validity Preview ($selectedDays Days)',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Start: $startDateStr • Expires: $expiryDateStr',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.grey),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                try {
+                                  final DateTime now = DateTime.now();
+                                  final DateTime calculatedExpiry = now.add(
+                                    Duration(days: selectedDays),
+                                  );
+
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(docId)
+                                      .update({
+                                        'status': 'approved',
+                                        'isSubscribed': true,
+                                        'planName': selectedPackageName,
+                                        'membershipPackage':
+                                            selectedPackageName,
+                                        'membershipDurationDays': selectedDays,
+                                        'membershipStartDate':
+                                            FieldValue.serverTimestamp(),
+                                        'membershipExpiryDate':
+                                            Timestamp.fromDate(
+                                              calculatedExpiry,
+                                            ),
+                                        'expiryDate': Timestamp.fromDate(
+                                          calculatedExpiry,
+                                        ),
+                                        'approvedAt':
+                                            FieldValue.serverTimestamp(),
+                                      });
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Member approved successfully with $selectedPackageName! 🟢',
+                                        ),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to approve member: $e',
+                                        ),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(
+                                Icons.check_circle_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                'Confirm & Activate',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPackageOptionTile({
+    required String title,
+    required int days,
+    required String packageName,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF10B981).withValues(alpha: 0.15)
+              : const Color(0xFF12141C),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF10B981)
+                : Colors.white.withValues(alpha: 0.05),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[300],
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 14,
+              ),
             ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to approve member: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
+            Icon(
+              isSelected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color: isSelected ? const Color(0xFF10B981) : Colors.grey[600],
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // 🔴 Reject Pending Member
@@ -208,58 +592,25 @@ class ManageMembersView extends StatelessWidget {
     );
 
     if (confirm == true) {
-      if (!context.mounted) return;
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Colors.redAccent),
-        ),
-      );
-
       try {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userId)
             .delete();
 
-        if (userEmail.isNotEmpty) {
-          await FirebaseFirestore.instance
-              .collection('workout_charts')
-              .doc(userEmail)
-              .delete();
-          await FirebaseFirestore.instance
-              .collection('diet_charts')
-              .doc(userEmail)
-              .delete();
-        }
-        if (userId != userEmail) {
-          await FirebaseFirestore.instance
-              .collection('workout_charts')
-              .doc(userId)
-              .delete();
-          await FirebaseFirestore.instance
-              .collection('diet_charts')
-              .doc(userId)
-              .delete();
-        }
-
         if (context.mounted) {
-          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Member deleted permanently from database'),
+            SnackBar(
+              content: Text('$userName has been deleted.'),
               backgroundColor: Colors.redAccent,
             ),
           );
         }
       } catch (e) {
         if (context.mounted) {
-          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete member: $e'),
+              content: Text('Failed to delete user: $e'),
               backgroundColor: Colors.redAccent,
             ),
           );
@@ -275,7 +626,7 @@ class ManageMembersView extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Gym Members & Requests',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF1A1D29),
         elevation: 0,
@@ -284,20 +635,21 @@ class ManageMembersView extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
-            .where('role', isNotEqualTo: 'admin')
+            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.blueAccent),
+            );
+          }
+
           if (snapshot.hasError) {
             return Center(
               child: Text(
                 'Error: ${snapshot.error}',
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.redAccent),
               ),
-            );
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.blueAccent),
             );
           }
 
@@ -315,139 +667,130 @@ class ManageMembersView extends StatelessWidget {
           }).toList();
 
           final totalUsers = approvedDocs.length;
-          const maxLimit = 100;
+          final pendingCount = pendingDocs.length;
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 📊 1. Membership Capacity Counter Card
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
+                // 1. STATS BANNER
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ACTIVE MEMBERS',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Registered Slots',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A1D29),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.blueAccent.withValues(alpha: 0.3),
+                            ),
                           ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
+                          child: Column(
                             children: [
+                              const Icon(
+                                Icons.people_alt_rounded,
+                                color: Colors.blueAccent,
+                                size: 28,
+                              ),
+                              const SizedBox(height: 6),
                               Text(
                                 '$totalUsers',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              const SizedBox(height: 2),
                               const Text(
-                                ' / $maxLimit',
+                                'Active Members',
                                 style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: totalUsers / maxLimit,
-                          backgroundColor: Colors.white24,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.greenAccent,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A1D29),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: pendingCount > 0
+                                  ? Colors.amberAccent.withValues(alpha: 0.5)
+                                  : Colors.white.withValues(alpha: 0.05),
+                            ),
                           ),
-                          minHeight: 8,
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.person_add_rounded,
+                                color: pendingCount > 0
+                                    ? Colors.amberAccent
+                                    : Colors.grey,
+                                size: 28,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '$pendingCount',
+                                style: TextStyle(
+                                  color: pendingCount > 0
+                                      ? Colors.amberAccent
+                                      : Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Pending Requests',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // ⏳ 2. Pending Approval Requests Section (Admin Approval System)
+                // 2. PENDING REQUESTS SECTION
                 if (pendingDocs.isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                      horizontal: 16.0,
+                      vertical: 8.0,
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.hourglass_top_rounded,
-                          color: Colors.amberAccent,
-                          size: 18,
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.amberAccent,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         const Text(
-                          'MEMBERSHIP REQUESTS',
+                          'PENDING MEMBERSHIP REQUESTS',
                           style: TextStyle(
                             color: Colors.amberAccent,
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.amberAccent.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: Colors.amberAccent,
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Text(
-                            '${pendingDocs.length} Pending',
-                            style: const TextStyle(
-                              color: Colors.amberAccent,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
                           ),
                         ),
                       ],
@@ -572,8 +915,12 @@ class ManageMembersView extends StatelessWidget {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: ElevatedButton.icon(
-                                    onPressed: () =>
-                                        _approveMember(context, docId, name),
+                                    onPressed: () => _approveMember(
+                                      context,
+                                      docId,
+                                      name,
+                                      userEmail: email,
+                                    ),
                                     icon: const Icon(
                                       Icons.check_rounded,
                                       size: 18,
@@ -595,26 +942,29 @@ class ManageMembersView extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                 ],
 
-                // 📋 3. Active Members List Header
+                // 3. APPROVED MEMBERS SECTION
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Text(
-                    'ACTIVE MEMBERS DETAILS',
+                    'REGISTERED MEMBERS',
                     style: TextStyle(
                       color: Colors.grey,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ),
 
                 if (approvedDocs.isEmpty)
                   const Padding(
-                    padding: EdgeInsets.all(24.0),
+                    padding: EdgeInsets.all(32.0),
                     child: Center(
                       child: Text(
                         'কোনো সক্রিয় মেম্বার খুঁজে পাওয়া যায়নি! 👤',

@@ -1,3 +1,26 @@
+@Suppress("UNCHECKED_CAST")
+try {
+    val peClass = Class.forName("java.lang.ProcessEnvironment")
+    val field = peClass.getDeclaredField("theEnvironment")
+    field.isAccessible = true
+    val map = field.get(null) as MutableMap<String, String>
+    map.remove("ANDROID_PREFS_ROOT")
+    val ciField = peClass.getDeclaredField("theCaseInsensitiveEnvironment")
+    ciField.isAccessible = true
+    val ciMap = ciField.get(null) as MutableMap<String, String>
+    ciMap.remove("ANDROID_PREFS_ROOT")
+} catch (_: Exception) {
+    try {
+        val env = System.getenv()
+        val cl = env.javaClass
+        val field = cl.getDeclaredField("m")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val map = field.get(env) as MutableMap<String, String>
+        map.remove("ANDROID_PREFS_ROOT")
+    } catch (_: Exception) {}
+}
+
 pluginManagement {
     val flutterSdkPath =
         run {
@@ -24,3 +47,4 @@ plugins {
 }
 
 include(":app")
+

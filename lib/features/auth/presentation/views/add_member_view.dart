@@ -308,7 +308,7 @@ class _AddMemberViewState extends State<AddMemberView> {
                         ),
                         hintText: '••••••••',
                         hintStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           fontSize: 14,
                         ),
                         prefixIcon: const Icon(
@@ -334,7 +334,7 @@ class _AddMemberViewState extends State<AddMemberView> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -409,13 +409,13 @@ class _AddMemberViewState extends State<AddMemberView> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Colors.purpleAccent.withOpacity(0.15)
+                                  ? Colors.purpleAccent.withValues(alpha: 0.15)
                                   : const Color(0xFF1A1D29),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
                                     ? Colors.purpleAccent
-                                    : Colors.white.withOpacity(0.05),
+                                    : Colors.white.withValues(alpha: 0.05),
                                 width: 1.5,
                               ),
                             ),
@@ -484,7 +484,7 @@ class _AddMemberViewState extends State<AddMemberView> {
         labelStyle: const TextStyle(color: Colors.grey, fontSize: 14),
         hintText: hint,
         hintStyle: TextStyle(
-          color: Colors.white.withOpacity(0.3),
+          color: Colors.white.withValues(alpha: 0.3),
           fontSize: 14,
         ),
         prefixIcon: Icon(icon, color: Colors.purpleAccent, size: 22),
@@ -492,7 +492,7 @@ class _AddMemberViewState extends State<AddMemberView> {
         fillColor: const Color(0xFF1A1D29),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

@@ -225,7 +225,7 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                         Icon(
                           Icons.person_search_rounded,
                           size: 56,
-                          color: Colors.grey.withOpacity(0.4),
+                          color: Colors.grey.withValues(alpha: 0.4),
                         ),
                         const SizedBox(height: 12),
                         const Text(
@@ -261,13 +261,13 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isExpanded
-                              ? Colors.greenAccent.withOpacity(0.5)
-                              : Colors.white.withOpacity(0.05),
+                              ? Colors.greenAccent.withValues(alpha: 0.5)
+                              : Colors.white.withValues(alpha: 0.05),
                           width: isExpanded ? 1.5 : 1.0,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -296,7 +296,7 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                   CircleAvatar(
                                     radius: 24,
                                     backgroundColor: Colors.greenAccent
-                                        .withOpacity(0.15),
+                                        .withValues(alpha: 0.15),
                                     child: Text(
                                       name.isNotEmpty
                                           ? name[0].toUpperCase()
@@ -337,7 +337,7 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                                   ),
                                               decoration: BoxDecoration(
                                                 color: Colors.blueAccent
-                                                    .withOpacity(0.18),
+                                                    .withValues(alpha: 0.18),
                                                 borderRadius:
                                                     BorderRadius.circular(6),
                                               ),
@@ -410,7 +410,7 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                 ),
                                 border: Border(
                                   top: BorderSide(
-                                    color: Colors.white.withOpacity(0.06),
+                                    color: Colors.white.withValues(alpha: 0.06),
                                   ),
                                 ),
                               ),
@@ -470,15 +470,15 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                         return Container(
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: Colors.amber.withOpacity(
-                                              0.1,
+                                            color: Colors.amber.withValues(
+                                              alpha: 0.1,
                                             ),
                                             borderRadius: BorderRadius.circular(
                                               10,
                                             ),
                                             border: Border.all(
-                                              color: Colors.amber.withOpacity(
-                                                0.3,
+                                              color: Colors.amber.withValues(
+                                                alpha: 0.3,
                                               ),
                                             ),
                                           ),
@@ -542,7 +542,7 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                                   BorderRadius.circular(12),
                                               border: Border.all(
                                                 color: Colors.greenAccent
-                                                    .withOpacity(0.3),
+                                                    .withValues(alpha: 0.3),
                                               ),
                                             ),
                                             child: DropdownButtonHideUnderline(

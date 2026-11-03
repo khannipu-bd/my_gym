@@ -62,7 +62,7 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
                     Icon(
                       Icons.fitness_center_rounded,
                       size: 64,
-                      color: Colors.grey.withOpacity(0.3),
+                      color: Colors.grey.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -153,7 +153,9 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1D29),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.blueAccent.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -198,7 +200,7 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 6),
                     ),
@@ -252,7 +254,9 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
                                     Text(
                                       data['duration'] ?? 'Estimated Time',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.85),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.85,
+                                        ),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -266,7 +270,9 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
                                     Text(
                                       '${exercises.length} Exercises',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.85),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.85,
+                                        ),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -336,13 +342,19 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: isDone
-                                        ? Colors.blueAccent.withOpacity(0.04)
+                                        ? Colors.blueAccent.withValues(
+                                            alpha: 0.04,
+                                          )
                                         : const Color(0xFF12141C),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
                                       color: isDone
-                                          ? Colors.blueAccent.withOpacity(0.2)
-                                          : Colors.white.withOpacity(0.02),
+                                          ? Colors.blueAccent.withValues(
+                                              alpha: 0.2,
+                                            )
+                                          : Colors.white.withValues(
+                                              alpha: 0.02,
+                                            ),
                                     ),
                                   ),
                                   child: Row(
@@ -446,7 +458,7 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
                                                 '💡 Instruction: ${exercise['instructionOrLink']}',
                                                 style: TextStyle(
                                                   color: Colors.white
-                                                      .withOpacity(0.6),
+                                                      .withValues(alpha: 0.6),
                                                   fontSize: 12,
                                                   height: 1.4,
                                                 ),
@@ -478,7 +490,7 @@ class _UserWorkoutViewState extends State<UserWorkoutView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(

@@ -115,12 +115,12 @@ class DietHubView extends ConsumerWidget {
             color: const Color(0xFF1A1D29),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: accentColor.withOpacity(0.25),
+              color: accentColor.withValues(alpha: 0.25),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -131,7 +131,7 @@ class DietHubView extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.12),
+                  color: accentColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 36, color: accentColor),
@@ -165,7 +165,7 @@ class DietHubView extends ConsumerWidget {
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 18,
-                color: accentColor.withOpacity(0.7),
+                color: accentColor.withValues(alpha: 0.7),
               ),
             ],
           ),

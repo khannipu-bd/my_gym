@@ -64,7 +64,7 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
   final _durationController = TextEditingController();
 
   // 📅 ডায়নামিক ডেইস এবং তাদের ভেতরের এক্সারসাইজ ট্র্যাক করার মেইন লিস্ট
-  List<DayRoutineControllers> _dayRoutines = [];
+  final List<DayRoutineControllers> _dayRoutines = [];
   bool _isLoading = false;
 
   @override
@@ -253,6 +253,7 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
           ),
           TextButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               setState(() => _isLoading = true);
               try {
@@ -261,26 +262,24 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
                     .doc(_selectedUserEmail)
                     .delete();
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '$_selectedUserName এর প্ল্যানটি ডিলিট করা হয়েছে। 🧹',
-                      ),
-                      backgroundColor: Colors.orangeAccent,
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '$_selectedUserName এর প্ল্যানটি ডিলিট করা হয়েছে। 🧹',
                     ),
-                  );
-                  _clearForm();
-                }
+                    backgroundColor: Colors.orangeAccent,
+                  ),
+                );
+                _clearForm();
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('ডিলিট করতে সমস্যা হয়েছে: $e'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                }
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('ডিলিট করতে সমস্যা হয়েছে: $e'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
               } finally {
                 if (mounted) setState(() => _isLoading = false);
               }
@@ -588,7 +587,9 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
                       ElevatedButton.icon(
                         onPressed: () => _addNewDayRoutine(),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent.withOpacity(0.15),
+                          backgroundColor: Colors.blueAccent.withValues(
+                            alpha: 0.15,
+                          ),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -661,7 +662,7 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
         color: const Color(0xFF1A1D29),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.blueAccent.withOpacity(0.2),
+          color: Colors.blueAccent.withValues(alpha: 0.2),
           width: 1.2,
         ),
       ),
@@ -737,7 +738,9 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF12141C),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.04)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.04),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -747,7 +750,7 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
                         Text(
                           'Exercise #${exIndex + 1}',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -832,7 +835,7 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
         labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
         hintText: hint,
         hintStyle: TextStyle(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           fontSize: 13,
         ),
         prefixIcon: Icon(icon, color: Colors.blueAccent, size: 20),
@@ -867,7 +870,7 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
         labelStyle: const TextStyle(color: Colors.grey, fontSize: 11),
         hintText: hint,
         hintStyle: TextStyle(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           fontSize: 12,
         ),
         filled: true,
@@ -875,7 +878,7 @@ class _AddWorkoutViewState extends State<AddWorkoutView> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.02)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.02)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

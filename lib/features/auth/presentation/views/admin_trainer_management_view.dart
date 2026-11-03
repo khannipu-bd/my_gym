@@ -1,6 +1,9 @@
 // admin_trainer_management_view.dart
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AdminTrainerManagementView extends StatefulWidget {
   const AdminTrainerManagementView({super.key});
@@ -17,14 +20,66 @@ class _AdminTrainerManagementViewState
   final _specialtyController = TextEditingController();
   final _phoneController = TextEditingController();
   final _experienceController = TextEditingController();
+  final _whatsappController = TextEditingController();
+  final _facebookController = TextEditingController();
+
+  XFile? _selectedImage;
+  bool _isUploading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _specialtyController.dispose();
+    _phoneController.dispose();
+    _experienceController.dispose();
+    _whatsappController.dispose();
+    _facebookController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (image != null) {
+      setState(() {
+        _selectedImage = image;
+      });
+    }
+  }
 
   void _addTrainer() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    String downloadUrl = '';
+
+    try {
+      if (_selectedImage != null) {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('trainers')
+            .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+        await storageRef.putFile(File(_selectedImage!.path));
+        downloadUrl = await storageRef.getDownloadURL();
+      }
+
       await FirebaseFirestore.instance.collection('trainers').add({
         'name': _nameController.text.trim(),
         'specialty': _specialtyController.text.trim(),
-        'phone': _phoneController.text.trim(),
         'experience': _experienceController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'whatsapp': _whatsappController.text.trim().isEmpty
+            ? _phoneController.text.trim()
+            : _whatsappController.text.trim(),
+        'facebook': _facebookController.text.trim(),
+        'photoUrl': downloadUrl,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -32,21 +87,59 @@ class _AdminTrainerManagementViewState
       _specialtyController.clear();
       _phoneController.clear();
       _experienceController.clear();
+      _whatsappController.clear();
+      _facebookController.clear();
+
+      setState(() {
+        _selectedImage = null;
+        _isUploading = false;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trainer Added Successfully! 🎉')),
+          const SnackBar(
+            content: Text('Trainer Profile Added Successfully! 🎉'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding trainer: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     }
   }
 
-  void _deleteTrainer(String id) async {
-    await FirebaseFirestore.instance.collection('trainers').doc(id).delete();
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Trainer Removed! ❌')));
+  void _deleteTrainer(String id, String? photoUrl) async {
+    try {
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        try {
+          final storageRef = FirebaseStorage.instance.refFromURL(photoUrl);
+          await storageRef.delete();
+        } catch (e) {
+          debugPrint('Error deleting photo: $e');
+        }
+      }
+      await FirebaseFirestore.instance.collection('trainers').doc(id).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Trainer Removed! ❌')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      }
     }
   }
 
@@ -56,10 +149,11 @@ class _AdminTrainerManagementViewState
       backgroundColor: const Color(0xFF12141C),
       appBar: AppBar(
         title: const Text(
-          'Trainer Profile Management',
-          style: TextStyle(color: Colors.white),
+          'Trainer Management',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF1A1D29),
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
@@ -75,55 +169,130 @@ class _AdminTrainerManagementViewState
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Form(
               key: _formKey,
               child: Column(
                 children: [
+                  // Photo Picker Section
+                  Center(
+                    child: Stack(
+                      children: [
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundColor: const Color(0xFF1A1D29),
+                            backgroundImage: _selectedImage != null
+                                ? FileImage(File(_selectedImage!.path))
+                                : null,
+                            child: _selectedImage == null
+                                ? const Icon(
+                                    Icons.person_rounded,
+                                    size: 50,
+                                    color: Colors.blueAccent,
+                                  )
+                                : null,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Colors.blueAccent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Tap to select trainer photo',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(height: 20),
+
                   _buildTextField(
                     _nameController,
-                    'Trainer Name',
-                    Icons.person,
+                    'Trainer Full Name',
+                    Icons.person_outline_rounded,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   _buildTextField(
                     _specialtyController,
-                    'Specialty (e.g., Weight Loss, Yoga)',
-                    Icons.fitness_center,
+                    'Specialty (e.g. Crossfit, Weight Loss)',
+                    Icons.fitness_center_rounded,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   _buildTextField(
                     _experienceController,
-                    'Experience (e.g., 3 Years)',
-                    Icons.workspace_premium,
+                    'Experience (e.g. 5 Years)',
+                    Icons.workspace_premium_rounded,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   _buildTextField(
                     _phoneController,
-                    'Contact/Phone Number',
-                    Icons.phone,
+                    'Phone Number (e.g. 01712345678)',
+                    Icons.phone_outlined,
                     keyBoardType: TextInputType.phone,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    _whatsappController,
+                    'WhatsApp Number (e.g. 8801712345678)',
+                    Icons.chat_rounded,
+                    keyBoardType: TextInputType.phone,
+                    isOptional: true,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    _facebookController,
+                    'Facebook Profile Link / Username',
+                    Icons.link_rounded,
+                    isOptional: true,
+                  ),
+                  const SizedBox(height: 20),
+
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purpleAccent,
+                        backgroundColor: Colors.blueAccent,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      onPressed: _addTrainer,
-                      child: const Text(
-                        'Save Trainer Profile',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      onPressed: _isUploading ? null : _addTrainer,
+                      child: _isUploading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Text(
+                              'Save Trainer Profile',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -145,20 +314,18 @@ class _AdminTrainerManagementViewState
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.purpleAccent,
-                    ),
+                    child: CircularProgressIndicator(color: Colors.blueAccent),
                   );
                 }
-                final trainers = snapshot.data!.docs;
-                if (trainers.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Text(
                     'No trainers added yet.',
                     style: TextStyle(color: Colors.grey),
                   );
                 }
+                final trainers = snapshot.data!.docs;
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -166,28 +333,57 @@ class _AdminTrainerManagementViewState
                   itemBuilder: (context, index) {
                     final data = trainers[index].data() as Map<String, dynamic>;
                     final docId = trainers[index].id;
-                    return Card(
-                      color: const Color(0xFF1A1D29),
-                      margin: const EdgeInsets.only(bottom: 10),
+                    final photoUrl = data['photoUrl']?.toString() ?? '';
+                    final name = data['name']?.toString() ?? 'Trainer';
+                    final specialty = data['specialty']?.toString() ?? '';
+                    final exp = data['experience']?.toString() ?? '';
+                    final phone = data['phone']?.toString() ?? '';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1D29),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.05),
+                        ),
+                      ),
                       child: ListTile(
+                        leading: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: Colors.blueAccent.withValues(
+                            alpha: 0.1,
+                          ),
+                          backgroundImage: photoUrl.isNotEmpty
+                              ? NetworkImage(photoUrl)
+                              : null,
+                          child: photoUrl.isEmpty
+                              ? const Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.blueAccent,
+                                )
+                              : null,
+                        ),
                         title: Text(
-                          data['name'] ?? '',
+                          name,
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         subtitle: Text(
-                          "${data['specialty']} (${data['experience']})\nPhone: ${data['phone']}",
-                          style: const TextStyle(color: Colors.grey),
+                          "$specialty • $exp\nPhone: $phone",
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
                         ),
-                        isThreeLine: true,
                         trailing: IconButton(
                           icon: const Icon(
-                            Icons.delete,
+                            Icons.delete_outline_rounded,
                             color: Colors.redAccent,
                           ),
-                          onPressed: () => _deleteTrainer(docId),
+                          onPressed: () => _deleteTrainer(docId, photoUrl),
                         ),
                       ),
                     );
@@ -206,24 +402,33 @@ class _AdminTrainerManagementViewState
     String hint,
     IconData icon, {
     TextInputType keyBoardType = TextInputType.text,
+    bool isOptional = false,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyBoardType,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.grey),
+        prefixIcon: Icon(icon, color: Colors.blueAccent, size: 20),
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
+        hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
         filled: true,
         fillColor: const Color(0xFF1A1D29),
-        border: OutlineInputBorder(
+        enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: Colors.white10),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.blueAccent),
         ),
       ),
-      validator: (value) =>
-          value == null || value.isEmpty ? 'Required field' : null,
+      validator: (value) {
+        if (!isOptional && (value == null || value.trim().isEmpty)) {
+          return 'Required field';
+        }
+        return null;
+      },
     );
   }
 }

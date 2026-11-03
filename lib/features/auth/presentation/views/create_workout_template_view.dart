@@ -63,7 +63,7 @@ class _CreateWorkoutTemplateViewState
   final _templateNameController = TextEditingController();
   final _durationController = TextEditingController();
 
-  List<DayRoutineControllers> _dayRoutines = [];
+  final List<DayRoutineControllers> _dayRoutines = [];
   bool _isLoading = false;
 
   @override
@@ -358,8 +358,8 @@ class _CreateWorkoutTemplateViewState
                       ElevatedButton.icon(
                         onPressed: () => _addNewDayRoutine(),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purpleAccent.withOpacity(
-                            0.15,
+                          backgroundColor: Colors.purpleAccent.withValues(
+                            alpha: 0.15,
                           ),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -448,7 +448,7 @@ class _CreateWorkoutTemplateViewState
         color: const Color(0xFF1A1D29),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.purpleAccent.withOpacity(0.2),
+          color: Colors.purpleAccent.withValues(alpha: 0.2),
           width: 1.2,
         ),
       ),
@@ -523,7 +523,9 @@ class _CreateWorkoutTemplateViewState
                 decoration: BoxDecoration(
                   color: const Color(0xFF12141C),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.04)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.04),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -533,7 +535,7 @@ class _CreateWorkoutTemplateViewState
                         Text(
                           'Exercise #${exIndex + 1}',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -647,7 +649,7 @@ class _CreateWorkoutTemplateViewState
               decoration: BoxDecoration(
                 color: const Color(0xFF1A1D29),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(0.06)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
               child: Row(
                 children: [
@@ -711,7 +713,7 @@ class _CreateWorkoutTemplateViewState
         labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
         hintText: hint,
         hintStyle: TextStyle(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           fontSize: 13,
         ),
         prefixIcon: Icon(icon, color: Colors.blueAccent, size: 20),
@@ -746,7 +748,7 @@ class _CreateWorkoutTemplateViewState
         labelStyle: const TextStyle(color: Colors.grey, fontSize: 11),
         hintText: hint,
         hintStyle: TextStyle(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           fontSize: 12,
         ),
         filled: true,
@@ -754,7 +756,7 @@ class _CreateWorkoutTemplateViewState
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.02)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.02)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

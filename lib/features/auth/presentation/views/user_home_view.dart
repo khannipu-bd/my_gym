@@ -164,8 +164,16 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _initPedometer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initAsyncServices();
+      }
+    });
+  }
+
+  void _initAsyncServices() {
     _loadStoredData();
+    _initSensorsSafely();
   }
 
   @override
@@ -179,7 +187,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
     final prefs = await SharedPreferences.getInstance();
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
 
-    // Read stored water intake (supporting both water_intake_ key and fallback water_logged_)
+    // Read stored water intake with key water_intake_YYYY-MM-DD
     final savedWater =
         prefs.getDouble('water_intake_$todayStr') ??
         prefs.getDouble('water_logged_$todayStr') ??
@@ -250,7 +258,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
     await prefs.setStringList('completed_exercises_$todayStr', activeList);
   }
 
-  // 💧 Dynamic Water Target Calculation
+  // 💧 Dynamic Water Target Calculation Formula
   double _calculateDynamicWaterTarget({
     required double userWeightKg,
     required Map<String, dynamic>? workoutData,
@@ -259,88 +267,99 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
     // 1. Safe weight fallback (default 65 kg if missing or <= 0)
     final double weightKg = (userWeightKg > 0) ? userWeightKg : 65.0;
 
-    // 2. Read workout duration in minutes
-    final List<dynamic> exercises = parsedWorkout['exercises'] ?? [];
-    int workoutMinutes = 0;
-
-    if (exercises.isNotEmpty ||
-        (workoutData != null && workoutData.isNotEmpty)) {
-      final String rawDuration = workoutData?['duration']?.toString() ?? '';
-      final match = RegExp(r'\d+').firstMatch(rawDuration);
-      if (match != null) {
-        workoutMinutes = int.tryParse(match.group(0)!) ?? 45;
-      } else {
-        workoutMinutes = exercises.isNotEmpty ? 45 : 0;
-      }
-    }
-
-    // 3. Formula:
-    // Base Water = weight_kg * 35 (ml)
-    // Exercise Addition = (workout_minutes / 30) * 350 (ml)
-    // Total Target = Base Water + Exercise Addition
+    // 2. Base target: user_weight_kg * 35 ml
     final double baseWaterMl = weightKg * 35.0;
-    final double exerciseAdditionMl = (workoutMinutes / 30.0) * 350.0;
-    final double totalTargetMl = (baseWaterMl + exerciseAdditionMl).clamp(
+
+    // 3. Add workout adjustment: +350 ml if workout is assigned for today
+    final List<dynamic> exercises = parsedWorkout['exercises'] ?? [];
+    final bool hasWorkoutToday =
+        exercises.isNotEmpty ||
+        (workoutData != null &&
+            workoutData.isNotEmpty &&
+            parsedWorkout['title'] != 'Rest & Recovery Day 😴');
+    final double workoutAdjustmentMl = hasWorkoutToday ? 350.0 : 0.0;
+
+    // 4. Clamp target between 1500 ml and 4500 ml
+    final double totalTargetMl = (baseWaterMl + workoutAdjustmentMl).clamp(
       1500.0,
       4500.0,
     );
 
-    // 4. Return target in Liters formatted to 1 decimal place (e.g. 2.8 L)
+    // 5. Convert to Liters (rounded to 1 decimal, e.g. 2.6 L)
     return double.parse((totalTargetMl / 1000.0).toStringAsFixed(1));
   }
 
-  // 👟 Initialize Pedometer & Request Permission
-  Future<void> _initPedometer() async {
-    final status = await Permission.activityRecognition.request();
-    if (!status.isGranted) {
+  // 👟 Safe Pedometer & Sensor Initialization
+  Future<void> _initSensorsSafely() async {
+    try {
+      final status = await Permission.activityRecognition.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          setState(() {
+            _isPedSensorAvailable = false;
+            _todaySteps = 0;
+          });
+        }
+        return;
+      }
+
+      _stepCountSubscription = Pedometer.stepCountStream.listen(
+        _onStepCount,
+        onError: (dynamic error) {
+          debugPrint('Pedometer stream error: $error');
+          _onStepCountError(error);
+        },
+        cancelOnError: false,
+      );
+    } catch (e) {
+      debugPrint('Pedometer sensor init exception: $e');
+      if (mounted) {
+        setState(() {
+          _isPedSensorAvailable = false;
+          _todaySteps = 0;
+        });
+      }
+    }
+  }
+
+  void _onStepCount(StepCount event) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+      final savedDate = prefs.getString('step_baseline_date');
+      final savedBaseline = prefs.getInt('step_baseline_count');
+
+      int baseline = event.steps;
+
+      if (savedDate == todayStr && savedBaseline != null) {
+        if (event.steps < savedBaseline) {
+          baseline = event.steps;
+          await prefs.setString('step_baseline_date', todayStr);
+          await prefs.setInt('step_baseline_count', baseline);
+        } else {
+          baseline = savedBaseline;
+        }
+      } else {
+        await prefs.setString('step_baseline_date', todayStr);
+        await prefs.setInt('step_baseline_count', event.steps);
+        baseline = event.steps;
+      }
+
+      final calculatedSteps = (event.steps - baseline).clamp(0, 999999);
+
+      if (mounted) {
+        setState(() {
+          _todaySteps = calculatedSteps;
+          _isPedSensorAvailable = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Step count processing exception: $e');
       if (mounted) {
         setState(() {
           _isPedSensorAvailable = false;
         });
       }
-      return;
-    }
-
-    try {
-      _stepCountSubscription = Pedometer.stepCountStream.listen(
-        _onStepCount,
-        onError: _onStepCountError,
-        cancelOnError: false,
-      );
-    } catch (e) {
-      _onStepCountError(e);
-    }
-  }
-
-  void _onStepCount(StepCount event) async {
-    final prefs = await SharedPreferences.getInstance();
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    final savedDate = prefs.getString('step_baseline_date');
-    final savedBaseline = prefs.getInt('step_baseline_count');
-
-    int baseline = event.steps;
-
-    if (savedDate == todayStr && savedBaseline != null) {
-      if (event.steps < savedBaseline) {
-        baseline = event.steps;
-        await prefs.setString('step_baseline_date', todayStr);
-        await prefs.setInt('step_baseline_count', baseline);
-      } else {
-        baseline = savedBaseline;
-      }
-    } else {
-      await prefs.setString('step_baseline_date', todayStr);
-      await prefs.setInt('step_baseline_count', event.steps);
-      baseline = event.steps;
-    }
-
-    final calculatedSteps = (event.steps - baseline).clamp(0, 999999);
-
-    if (mounted) {
-      setState(() {
-        _todaySteps = calculatedSteps;
-        _isPedSensorAvailable = true;
-      });
     }
   }
 
@@ -348,6 +367,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
     if (mounted) {
       setState(() {
         _isPedSensorAvailable = false;
+        _todaySteps = 0;
       });
     }
   }
@@ -432,7 +452,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
         'color': Colors.grey,
         'displayHeightWeight': 'No Profile Data',
         'burnGoal': 450,
-        'stepsGoal': 8000,
+        'stepsGoal': 6000,
       };
     }
 
@@ -449,32 +469,32 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
     String categoryTag;
     Color color;
     int burnGoal = 450;
-    int stepsGoal = 8000;
+    int stepsGoal = 6000;
 
     if (bmi < 18.5) {
       status = 'Underweight 🦴';
       categoryTag = 'Underweight';
       color = const Color(0xFF38BDF8);
       burnGoal = 350;
-      stepsGoal = 6500;
+      stepsGoal = 6000;
     } else if (bmi >= 18.5 && bmi < 25.0) {
       status = 'Healthy ✨';
       categoryTag = 'Healthy';
       color = const Color(0xFF10B981);
       burnGoal = 450;
-      stepsGoal = 8000;
+      stepsGoal = 6000;
     } else if (bmi >= 25.0 && bmi < 30.0) {
       status = 'Overweight ⚠️';
       categoryTag = 'Overweight';
       color = const Color(0xFFF59E0B);
       burnGoal = 550;
-      stepsGoal = 10000;
+      stepsGoal = 8000;
     } else {
       status = 'Obese 🚨';
       categoryTag = 'Obese';
       color = const Color(0xFFEF4444);
       burnGoal = 650;
-      stepsGoal = 12000;
+      stepsGoal = 10000;
     }
 
     int feet = (totalInches / 12).floor();
@@ -1010,7 +1030,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                                                     .toString()
                                                     .isNotEmpty)
                                               _buildMiniBadge(
-                                                'Rest: ${ex['restTime']}',
+                                                'Rest: ${ex['restTime']}s',
                                                 Colors.amber,
                                               ),
                                           ],
@@ -1054,7 +1074,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
   Map<String, dynamic> _parseWorkoutData(Map<String, dynamic>? workoutData) {
     if (workoutData == null || workoutData.isEmpty) {
       return {
-        'title': 'Rest & Recovery Day 😴',
+        'title': 'Rest Day 🧘',
         'subtitle': 'No active scheduled workout',
         'exercises': <dynamic>[],
       };
@@ -1112,7 +1132,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
     }
 
     return {
-      'title': 'Rest & Recovery Day 😴',
+      'title': 'Rest Day 🧘',
       'subtitle': 'Take time to rest and rebuild',
       'exercises': <dynamic>[],
     };
@@ -1323,7 +1343,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
 
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(color: Colors.blueAccent),
+              child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
             );
           }
 
@@ -1809,6 +1829,8 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                     final int targetGlasses =
                         ((dynamicWaterTarget * 1000) / 250).round();
 
+                    final int activeBurnKcal = (_todaySteps * 0.04).round();
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1890,7 +1912,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                                           const SizedBox(height: 8),
                                           Text(
                                             totalExercises > 0
-                                                ? "$doneExercises of $totalExercises Done ($progressPercent%)"
+                                                ? "$doneExercises of $totalExercises Exercises Done ($progressPercent%)"
                                                 : "Rest & recovery focus",
                                             style: const TextStyle(
                                               color: Color(0xFFCBD5E1),
@@ -2014,7 +2036,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                                     ),
                                     const SizedBox(height: 10),
                                     const Text(
-                                      'Burned',
+                                      'Burned Calories',
                                       style: TextStyle(
                                         color: Colors.grey,
                                         fontSize: 11,
@@ -2023,16 +2045,16 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${(_todaySteps * 0.04).round()} kcal',
+                                      'Burned: $activeBurnKcal kcal',
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 15,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Goal: ${metrics['burnGoal']} kcal',
+                                      'from $_todaySteps steps',
                                       style: const TextStyle(
                                         color: Colors.grey,
                                         fontSize: 10,
@@ -2043,7 +2065,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                                       borderRadius: BorderRadius.circular(4),
                                       child: LinearProgressIndicator(
                                         value:
-                                            (((_todaySteps * 0.04).round()) /
+                                            (activeBurnKcal /
                                                     (metrics['burnGoal']
                                                         as int))
                                                 .clamp(0.0, 1.0),
@@ -2138,7 +2160,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${_loggedWater.toStringAsFixed(1)} / ${dynamicWaterTarget.toStringAsFixed(1)} L',
+                                      '${_loggedWater.toStringAsFixed(1)} L / ${dynamicWaterTarget.toStringAsFixed(1)} L',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 13,
@@ -2224,12 +2246,14 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                                     Text(
                                       _isPedSensorAvailable
                                           ? '$_todaySteps'
-                                          : '0 Steps',
+                                          : '0 Steps / Sensor Idle',
                                       style: TextStyle(
                                         color: _isPedSensorAvailable
                                             ? Colors.white
                                             : Colors.grey,
-                                        fontSize: 14,
+                                        fontSize: _isPedSensorAvailable
+                                            ? 14
+                                            : 10,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),

@@ -55,7 +55,7 @@ class UserDietView extends StatelessWidget {
                     Icon(
                       Icons.restaurant_menu_rounded,
                       size: 64,
-                      color: Colors.grey.withOpacity(0.3),
+                      color: Colors.grey.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -200,7 +200,7 @@ class UserDietView extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -245,7 +245,7 @@ class UserDietView extends StatelessWidget {
                       Text(
                         banglaTitle,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 11,
                         ),
                         maxLines: 1,
@@ -269,7 +269,7 @@ class UserDietView extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.18),
+                          color: Colors.black.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
@@ -299,7 +299,7 @@ class UserDietView extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -359,10 +359,10 @@ class UserDietView extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.amberAccent.withOpacity(0.06),
+                      color: Colors.amberAccent.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.amberAccent.withOpacity(0.15),
+                        color: Colors.amberAccent.withValues(alpha: 0.15),
                       ),
                     ),
                     child: Row(
@@ -390,7 +390,7 @@ class UserDietView extends StatelessWidget {
                               Text(
                                 note,
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.85),
+                                  color: Colors.white.withValues(alpha: 0.85),
                                   fontSize: 13,
                                   height: 1.4,
                                 ),

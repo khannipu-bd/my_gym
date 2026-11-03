@@ -193,9 +193,15 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snapshot) {
-        final int currentCount = snapshot.hasData
-            ? snapshot.data!.docs.length
-            : 0;
+        int currentCount = 0;
+        if (snapshot.hasData) {
+          currentCount = snapshot.data!.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status']?.toString() ?? '';
+            return status != 'pending' && status != 'rejected';
+          }).length;
+        }
+
         const int capacityLimit = 100;
         final double progress = (currentCount / capacityLimit).clamp(0.0, 1.0);
         final int percentage = (progress * 100).toInt();
@@ -670,14 +676,10 @@ class _ActionCardItem {
   final VoidCallback onTap;
 
   const _ActionCardItem({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color accentColor,
-    required VoidCallback onTap,
-  }) : title = title,
-       subtitle = subtitle,
-       icon = icon,
-       accentColor = accentColor,
-       onTap = onTap;
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.onTap,
+  });
 }
