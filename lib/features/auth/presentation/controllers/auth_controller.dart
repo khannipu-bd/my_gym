@@ -32,14 +32,21 @@ class AuthController extends _$AuthController {
 
       final userData = userDoc.data() as Map<String, dynamic>;
 
-      // 🔒 ১. অ্যাপ ওপেন হওয়ার সময় ব্লক স্ট্যাটাস চেক
+      // 🔒 ১. স্ট্যাটাস চেক (অ্যাডমিন এপ্রুভাল সিস্টেম)
+      final String status = userData['status'] ?? 'approved';
+      if (status == 'pending' || status == 'rejected') {
+        await fb_auth.FirebaseAuth.instance.signOut();
+        return null;
+      }
+
+      // 🔒 ২. অ্যাপ ওপেন হওয়ার সময় ব্লক স্ট্যাটাস চেক
       final bool isBlocked = userData['isBlocked'] == true;
       if (isBlocked) {
         await fb_auth.FirebaseAuth.instance.signOut();
         return null;
       }
 
-      // ⏰ ২. অ্যাপ ওপেন হওয়ার সময় প্ল্যান এক্সপায়ারি চেক (এডমিন বাদে সাধারণ ইউজারদের জন্য)
+      // ⏰ ৩. অ্যাপ ওপেন হওয়ার সময় প্ল্যান এক্সপায়ারি চেক (এডমিন বাদে সাধারণ ইউজারদের জন্য)
       final String role = userData['role'] ?? 'user';
       if (role != 'admin' && userData['expiryDate'] is Timestamp) {
         final Timestamp expiryTimestamp = userData['expiryDate'] as Timestamp;
@@ -63,7 +70,7 @@ class AuthController extends _$AuthController {
     return repoUser;
   }
 
-  // 🎯 সুরক্ষিত লগইন মেথড (ব্লক এবং প্ল্যান এক্সপায়ারি ভ্যালিডেশন সহ)
+  // 🎯 সুরক্ষিত লগইন মেথড (স্ট্যাটাস, ব্লক এবং প্ল্যান এক্সপায়ারি ভ্যালিডেশন সহ)
   Future<String?> login(String email, String password) async {
     try {
       // ১. ফায়ারবেস অথেন্টিকেশন ভেরিফিকেশন
@@ -85,22 +92,33 @@ class AuthController extends _$AuthController {
 
         final userData = userDoc.data() as Map<String, dynamic>;
 
-        // 🚨 ২. অ্যাকাউন্ট এডমিন ব্লক করেছে কি না চেক
+        // 🚨 ২. অ্যাডমিন এপ্রুভাল স্ট্যাটাস চেক
+        final String status = userData['status'] ?? 'approved';
+        if (status == 'pending') {
+          await fb_auth.FirebaseAuth.instance.signOut();
+          state = const AsyncValue.data(null);
+          return 'account-pending'; // 👈 কাস্টম এরর কোড (পেন্ডিং এপ্রুভাল)
+        } else if (status == 'rejected') {
+          await fb_auth.FirebaseAuth.instance.signOut();
+          state = const AsyncValue.data(null);
+          return 'account-rejected'; // 👈 কাস্টম এরর কোড (রিজেক্টেড মেম্বারশিপ)
+        }
+
+        // 🚨 ৩. অ্যাকাউন্ট এডমিন ব্লক করেছে কি না চেক
         final bool isBlocked = userData['isBlocked'] == true;
         if (isBlocked) {
           await fb_auth.FirebaseAuth.instance.signOut();
           state = const AsyncValue.data(null);
-          return 'account-blocked'; // 👈 কাস্টম এরর কোড (LoginView-তে ক্যাচ করার জন্য)
+          return 'account-blocked';
         }
 
-        // 🚨 ৩. মেম্বারশিপ প্ল্যান এক্সপায়ার হয়েছে কি না চেক (এডমিন বাদে সাধারণ মেম্বারদের জন্য)
+        // 🚨 ৪. মেম্বারশিপ প্ল্যান এক্সপায়ার হয়েছে কি না চেক (এডমিন বাদে সাধারণ মেম্বারদের জন্য)
         final String role = userData['role'] ?? 'user';
         if (role != 'admin' && userData['expiryDate'] is Timestamp) {
           final Timestamp expiryTimestamp = userData['expiryDate'] as Timestamp;
           final DateTime expiryDate = expiryTimestamp.toDate();
           final DateTime today = DateTime.now();
 
-          // দিন হিসাব (শুধু ডেট টু ডেট তুলনা করার জন্য)
           final difference = DateTime(
             expiryDate.year,
             expiryDate.month,
@@ -112,16 +130,14 @@ class AuthController extends _$AuthController {
           if (difference < 0 || !isSubscribed) {
             await fb_auth.FirebaseAuth.instance.signOut();
             state = const AsyncValue.data(null);
-            return 'plan-expired'; // 👈 কাস্টম এরর কোড (LoginView-তে ক্যাচ করার জন্য)
+            return 'plan-expired';
           }
         }
       }
 
-      // সবকিছু পাস হলে মেইন ডাটা স্টেট আপডেট হবে
       state = AsyncValue.data(user);
       return null;
     } catch (error) {
-      // 🔒 মেইন ডাটা স্টেট আগের অবস্থায় অপরিবর্তিত রাখা হলো
       final errString = error.toString().toLowerCase();
 
       if (errString.contains('invalid-credential') ||
@@ -140,42 +156,44 @@ class AuthController extends _$AuthController {
     }
   }
 
-  // 📝 নতুন মেম্বার রেজিস্টার করার মেথড (Gym ID ও Joining Date সহ)
+  // 📝 নতুন মেম্বার রেজিস্টার করার মেথড (Phone, Gym ID & Pending Status সহ)
   Future<String?> signUp({
     required String name,
     required String email,
     required String password,
+    required String phone,
   }) async {
     try {
-      // লিমিট চেক করা
       final bool isLimitReached = await isUserLimitReached();
       if (isLimitReached) {
         return 'limit-reached';
       }
 
-      // ফায়ারবেস অথেন্টিকেশনে নতুন ইউজার তৈরি
       final userCredential = await fb_auth.FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
       final uid = userCredential.user?.uid;
       if (uid != null) {
-        // 🆔 ইউনিক Gym ID জেনারেট করা (যেমন: GYM-4821)
         final String generatedGymId =
             'GYM-${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
 
-        // Firestore-এ ইউজার ডাটা সেভ
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'uid': uid,
           'name': name,
           'email': email,
+          'phone': phone,
           'role': 'user',
+          'status': 'pending', // 👈 pending, approved, rejected
           'isBlocked': false,
           'isSubscribed': false,
-          'gymId': generatedGymId, // 👈 অটোমেটিক Gym ID
-          'joiningDate': FieldValue.serverTimestamp(), // 👈 জয়েন করার তারিখ
+          'gymId': generatedGymId,
+          'joiningDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
+        // রেজিস্টার করার সাথে সাথে সাইনআউট (অ্যাডমিন এপ্রুভালের জন্য অপেক্ষা)
         await fb_auth.FirebaseAuth.instance.signOut();
-        return null; // রেজিস্ট্রেশন সফল
+        return null; // রেজিস্ট্রেশন সফল ও পেন্ডিং এপ্রুভাল
       }
       return 'registration-failed';
     } catch (error) {
@@ -183,19 +201,17 @@ class AuthController extends _$AuthController {
     }
   }
 
-  // 🛑 ফায়ারস্টোরে মোট মেম্বার বা ইউজারের সংখ্যা চেক করার জন্য
   Future<bool> isUserLimitReached() async {
     try {
-      // 'users' কালেকশনে যাদের রোল 'user' বা সাধারণ মেম্বার, শুধু তাদের গণনা করবে (এডমিন বাদ দিয়ে)
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('role', isEqualTo: 'user')
+          .where('status', isEqualTo: 'approved')
           .get();
 
-      // যদি মেম্বার সংখ্যা ১০০ বা তার বেশি হয়, তবে true পাঠাবে
       return querySnapshot.docs.length >= 100;
     } catch (e) {
-      return false; // কোনো এরর হলে সেফটি হিসেবে রেজিস্ট্রেশন ব্লক করবে না
+      return false;
     }
   }
 

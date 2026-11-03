@@ -259,11 +259,11 @@ class _AssignDietViewState extends ConsumerState<AssignDietView> {
                     final data = doc.data() as Map<String, dynamic>;
                     final memberDocId = doc.id;
 
-                    final name = data['name'] ?? 'Unknown Member';
-                    final email = data['email'] ?? memberDocId;
-                    final gymId = data['gymId'] ?? 'N/A';
-                    final weight = data['weight'] ?? 'N/A';
-                    final goal = data['goal'] ?? 'N/A';
+                    final name = data['name']?.toString() ?? 'Unknown Member';
+                    final email = data['email']?.toString() ?? memberDocId;
+                    final gymId = data['gymId']?.toString() ?? 'N/A';
+                    final weight = data['weight']?.toString() ?? 'N/A';
+                    final goal = data['goal']?.toString() ?? 'N/A';
                     final isExpanded = _expandedMemberDocId == memberDocId;
 
                     return Container(

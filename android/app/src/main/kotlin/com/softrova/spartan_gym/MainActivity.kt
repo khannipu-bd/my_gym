@@ -1,4 +1,4 @@
-package com.codeitech.my_gym
+package com.softrova.spartan_gym
 
 import io.flutter.embedding.android.FlutterActivity
 

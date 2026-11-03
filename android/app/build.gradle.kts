@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.codeitech.my_gym"
+    namespace = "com.softrova.spartan_gym"
     compileSdk = 36
 
     ndkVersion = flutter.ndkVersion
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.codeitech.my_gym"
+        applicationId = "com.softrova.spartan_gym"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode

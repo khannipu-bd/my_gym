@@ -16,30 +16,48 @@ class UserProfileView extends ConsumerWidget {
   ) {
     final user = FirebaseAuth.instance.currentUser;
 
-    final nameController = TextEditingController(text: userData['name'] ?? '');
+    final nameController = TextEditingController(
+      text: userData['name']?.toString() ?? '',
+    );
     final heightController = TextEditingController(
-      text: userData['height'] ?? '',
+      text: userData['height']?.toString() ?? '',
     );
     final weightController = TextEditingController(
-      text: userData['weight'] ?? '',
+      text: userData['weight']?.toString() ?? '',
     );
     final bloodController = TextEditingController(
-      text: userData['blood'] ?? '',
+      text: userData['blood']?.toString() ?? '',
     );
     final phoneController = TextEditingController(
-      text: userData['phone'] ?? '',
+      text: userData['phone']?.toString() ?? '',
     );
-    final ageController = TextEditingController(text: userData['age'] ?? '');
+    final ageController = TextEditingController(
+      text: userData['age']?.toString() ?? '',
+    );
 
     // ড্রপডাউন ভ্যালু ম্যানেজমেন্ট (ডিফল্ট 'Male')
+    final rawGender = userData['gender']?.toString();
     String selectedGender =
-        userData['gender'] == '--' || userData['gender'] == null
+        (rawGender == null || rawGender == '--' || rawGender.isEmpty)
         ? 'Male'
-        : userData['gender'];
+        : rawGender;
+    if (!['Male', 'Female', 'Other'].contains(selectedGender)) {
+      selectedGender = 'Male';
+    }
+
+    final rawGoal = userData['goal']?.toString();
     String selectedGoal =
-        userData['goal'] == 'Not set' || userData['goal'] == null
+        (rawGoal == null || rawGoal == 'Not set' || rawGoal.isEmpty)
         ? 'Weight Loss'
-        : userData['goal'];
+        : rawGoal;
+    if (![
+      'Weight Loss',
+      'Muscle Gain',
+      'Stay Fit',
+      'Endurance',
+    ].contains(selectedGoal)) {
+      selectedGoal = 'Weight Loss';
+    }
 
     showModalBottomSheet(
       context: context,
@@ -267,17 +285,17 @@ class UserProfileView extends ConsumerWidget {
             userData = snapshot.data!.data() as Map<String, dynamic>;
           }
 
-          String userName = userData['name'] ?? 'Gym Member';
-          String height = userData['height'] ?? '--';
-          String weight = userData['weight'] ?? '--';
-          String blood = userData['blood'] ?? '--';
-          String phone = userData['phone'] ?? 'Not added';
-          String age = userData['age'] ?? '--';
-          String gender = userData['gender'] ?? '--';
-          String goal = userData['goal'] ?? 'Not set';
+          String userName = userData['name']?.toString() ?? 'Gym Member';
+          String height = userData['height']?.toString() ?? '--';
+          String weight = userData['weight']?.toString() ?? '--';
+          String blood = userData['blood']?.toString() ?? '--';
+          String phone = userData['phone']?.toString() ?? 'Not added';
+          String age = userData['age']?.toString() ?? '--';
+          String gender = userData['gender']?.toString() ?? '--';
+          String goal = userData['goal']?.toString() ?? 'Not set';
 
           // 🆔 dynamic Gym ID
-          String gymId = userData['gymId'] ?? 'N/A';
+          String gymId = userData['gymId']?.toString() ?? 'N/A';
 
           // 📅 dynamic Join Date
           String joinDateText = 'N/A';
@@ -322,7 +340,7 @@ class UserProfileView extends ConsumerWidget {
                               border: Border.all(color: genderColor, width: 3),
                               boxShadow: [
                                 BoxShadow(
-                                  color: genderColor.withOpacity(0.2),
+                                  color: genderColor.withValues(alpha: 0.2),
                                   blurRadius: 15,
                                   spreadRadius: 5,
                                 ),
@@ -334,7 +352,7 @@ class UserProfileView extends ConsumerWidget {
                               child: Icon(
                                 avatarIcon, // ডাইনামিক জেন্ডার আইকন
                                 size: 70,
-                                color: genderColor.withOpacity(0.8),
+                                color: genderColor.withValues(alpha: 0.8),
                               ),
                             ),
                           ),
@@ -498,7 +516,7 @@ class UserProfileView extends ConsumerWidget {
                       color: const Color(0xFF1A1D29),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.blueAccent.withOpacity(0.2),
+                        color: Colors.blueAccent.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Material(
@@ -524,7 +542,9 @@ class UserProfileView extends ConsumerWidget {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.blueAccent.withOpacity(0.1),
+                                  color: Colors.blueAccent.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -582,10 +602,10 @@ class UserProfileView extends ConsumerWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.1),
+                        color: Colors.redAccent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.redAccent.withOpacity(0.3),
+                          color: Colors.redAccent.withValues(alpha: 0.3),
                           width: 1.5,
                         ),
                       ),
@@ -658,7 +678,7 @@ class UserProfileView extends ConsumerWidget {
     required ValueChanged<String?> onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       items: items.map((String item) {
         return DropdownMenuItem<String>(
           value: item,
@@ -698,7 +718,7 @@ class UserProfileView extends ConsumerWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF1A1D29),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Column(
           children: [

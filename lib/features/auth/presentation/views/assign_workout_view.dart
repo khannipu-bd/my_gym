@@ -246,11 +246,11 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                     final data = doc.data() as Map<String, dynamic>;
                     final docId = doc.id;
 
-                    final name = data['name'] ?? 'Unknown Member';
-                    final email = data['email'] ?? docId;
-                    final gymId = data['gymId'] ?? 'N/A';
-                    final weight = data['weight'] ?? 'N/A';
-                    final goal = data['goal'] ?? 'N/A';
+                    final name = data['name']?.toString() ?? 'Unknown Member';
+                    final email = data['email']?.toString() ?? docId;
+                    final gymId = data['gymId']?.toString() ?? 'N/A';
+                    final weight = data['weight']?.toString() ?? 'N/A';
+                    final goal = data['goal']?.toString() ?? 'N/A';
 
                     final isExpanded = _expandedMemberDocId == docId;
 
