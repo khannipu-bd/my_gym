@@ -61,13 +61,30 @@ class _AdminTrainerManagementViewState
 
     try {
       if (_selectedImage != null) {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('trainers')
-            .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final bytes = await _selectedImage!.readAsBytes();
+        final String fileExtension = _selectedImage!.path
+            .split('.')
+            .last
+            .toLowerCase();
+        final String fileName =
+            'trainers/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
 
-        await storageRef.putFile(File(_selectedImage!.path));
-        downloadUrl = await storageRef.getDownloadURL();
+        final Reference storageRef = FirebaseStorage.instance.ref().child(
+          fileName,
+        );
+
+        final UploadTask uploadTask = storageRef.putData(
+          bytes,
+          SettableMetadata(contentType: 'image/$fileExtension'),
+        );
+
+        final TaskSnapshot snapshot = await uploadTask;
+
+        if (snapshot.state == TaskState.success) {
+          downloadUrl = await storageRef.getDownloadURL();
+        } else {
+          throw Exception('Image upload failed with state: ${snapshot.state}');
+        }
       }
 
       await FirebaseFirestore.instance.collection('trainers').add({
