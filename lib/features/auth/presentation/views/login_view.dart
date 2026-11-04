@@ -1,7 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import '../../../../core/services/notification_service.dart';
 import '../controllers/auth_controller.dart';
+import 'admin_dashboard_view.dart';
+import 'pending_approval_view.dart';
+import 'user_home_view.dart';
 
 class LoginView extends ConsumerStatefulWidget {
   const LoginView({super.key});
@@ -1022,12 +1027,123 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
                                 if (!mounted) return;
 
-                                setState(() {
-                                  _isLocalLoading = false;
-                                });
+                                if (errorMsg != null) {
+                                  setState(() {
+                                    _isLocalLoading = false;
+                                  });
+                                  if (context.mounted) {
+                                    _showErrorDialog(context, errorMsg);
+                                  }
+                                  return;
+                                }
 
-                                if (errorMsg != null && context.mounted) {
-                                  _showErrorDialog(context, errorMsg);
+                                // Immediately after successful Firebase auth sign-in
+                                try {
+                                  await NotificationService.initialize();
+                                  await NotificationService.saveFcmToken();
+                                  final currentUser =
+                                      fb_auth.FirebaseAuth.instance.currentUser;
+
+                                  if (currentUser != null) {
+                                    final userDoc = await FirebaseFirestore
+                                        .instance
+                                        .collection('users')
+                                        .doc(currentUser.uid)
+                                        .get();
+
+                                    if (!mounted) return;
+
+                                    if (userDoc.exists &&
+                                        userDoc.data() != null) {
+                                      final userData =
+                                          userDoc.data()
+                                              as Map<String, dynamic>;
+                                      final role =
+                                          userData['role']
+                                              ?.toString()
+                                              .toLowerCase() ??
+                                          'member';
+                                      final status =
+                                          userData['status']
+                                              ?.toString()
+                                              .toLowerCase() ??
+                                          'approved';
+
+                                      if (!context.mounted) return;
+
+                                      if (role == 'admin' ||
+                                          currentUser.email ==
+                                              'admin@gym.com') {
+                                        Navigator.of(
+                                          context,
+                                        ).pushAndRemoveUntil(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AdminDashboardView(),
+                                          ),
+                                          (route) => false,
+                                        );
+                                        return;
+                                      } else if (role == 'member' ||
+                                          role == 'user') {
+                                        if (status == 'approved') {
+                                          Navigator.of(
+                                            context,
+                                          ).pushAndRemoveUntil(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const UserHomeView(),
+                                            ),
+                                            (route) => false,
+                                          );
+                                          return;
+                                        } else if (status == 'pending') {
+                                          Navigator.of(
+                                            context,
+                                          ).pushAndRemoveUntil(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const PendingApprovalView(),
+                                            ),
+                                            (route) => false,
+                                          );
+                                          return;
+                                        } else {
+                                          Navigator.of(
+                                            context,
+                                          ).pushAndRemoveUntil(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const PendingApprovalView(),
+                                            ),
+                                            (route) => false,
+                                          );
+                                          return;
+                                        }
+                                      }
+                                    }
+                                  }
+
+                                  if (context.mounted) {
+                                    Navigator.of(context).pushAndRemoveUntil(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const UserHomeView(),
+                                      ),
+                                      (route) => false,
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _isLocalLoading = false;
+                                  });
+                                  if (context.mounted) {
+                                    _showErrorDialog(
+                                      context,
+                                      'Login error: $e',
+                                    );
+                                  }
                                 }
                               },
                         style: ElevatedButton.styleFrom(

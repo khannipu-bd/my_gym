@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/datasources/auth_remote_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user_entity.dart';
@@ -34,7 +35,7 @@ class AuthController extends _$AuthController {
 
       // 🔒 ১. স্ট্যাটাস চেক (অ্যাডমিন এপ্রুভাল সিস্টেম)
       final String status = userData['status'] ?? 'approved';
-      if (status == 'pending' || status == 'rejected') {
+      if (status == 'rejected') {
         await fb_auth.FirebaseAuth.instance.signOut();
         return null;
       }
@@ -94,11 +95,7 @@ class AuthController extends _$AuthController {
 
         // 🚨 ২. অ্যাডমিন এপ্রুভাল স্ট্যাটাস চেক
         final String status = userData['status'] ?? 'approved';
-        if (status == 'pending') {
-          await fb_auth.FirebaseAuth.instance.signOut();
-          state = const AsyncValue.data(null);
-          return 'account-pending'; // 👈 কাস্টম এরর কোড (পেন্ডিং এপ্রুভাল)
-        } else if (status == 'rejected') {
+        if (status == 'rejected') {
           await fb_auth.FirebaseAuth.instance.signOut();
           state = const AsyncValue.data(null);
           return 'account-rejected'; // 👈 কাস্টম এরর কোড (রিজেক্টেড মেম্বারশিপ)
@@ -218,7 +215,10 @@ class AuthController extends _$AuthController {
   Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
       await ref.read(authRepositoryProvider).signOut();
+      await fb_auth.FirebaseAuth.instance.signOut();
       state = const AsyncValue.data(null);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);

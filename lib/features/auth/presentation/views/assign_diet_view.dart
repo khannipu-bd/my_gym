@@ -676,6 +676,8 @@ class _AssignDietViewState extends ConsumerState<AssignDietView> {
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     value,

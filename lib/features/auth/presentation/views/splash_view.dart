@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/services/notification_service.dart';
 import 'admin_dashboard_view.dart';
 import 'login_view.dart';
 import 'pending_approval_view.dart';
@@ -73,7 +74,11 @@ class _SplashViewState extends State<SplashView>
       });
     }
 
+    await NotificationService.initialize();
     final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await NotificationService.saveFcmToken();
+    }
     await Future.delayed(const Duration(milliseconds: 500));
 
     // Step 3: Syncing dashboard

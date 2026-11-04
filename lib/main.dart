@@ -1,20 +1,34 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/auth/presentation/views/splash_view.dart';
 
 void main() async {
-  // Ensure Flutter engine bindings are initialized
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded<Future<void>>(
+    () async {
+      // Ensure Flutter engine bindings are initialized
+      WidgetsFlutterBinding.ensureInitialized();
 
-  // Safe Firebase initialization
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('Firebase init error: $e');
-  }
+      // Handle Flutter framework errors gracefully without thread blocking
+      FlutterError.onError = (FlutterErrorDetails details) {
+        FlutterError.presentError(details);
+        debugPrint('Uncaught Flutter Error: ${details.exception}');
+      };
 
-  runApp(const ProviderScope(child: MyApp()));
+      // Safe Firebase initialization
+      try {
+        await Firebase.initializeApp();
+      } catch (e) {
+        debugPrint('Firebase init error: $e');
+      }
+
+      runApp(const ProviderScope(child: MyApp()));
+    },
+    (Object error, StackTrace stack) {
+      debugPrint('Uncaught Async Zone Error: $error');
+    },
+  );
 }
 
 class MyApp extends StatelessWidget {

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class UserNoticeView extends StatelessWidget {
   const UserNoticeView({super.key});
@@ -58,6 +59,15 @@ class UserNoticeView extends StatelessWidget {
               final title = data['title'] ?? 'No Title';
               final content = data['content'] ?? 'No Content';
 
+              String formattedTime = '';
+              final rawTimestamp = data['createdAt'] ?? data['timestamp'];
+              if (rawTimestamp is Timestamp) {
+                final date = rawTimestamp.toDate();
+                formattedTime = DateFormat(
+                  'MMM dd, yyyy • hh:mm a',
+                ).format(date);
+              }
+
               return Card(
                 color: const Color(0xFF1A1D29),
                 elevation: 3,
@@ -71,8 +81,13 @@ class UserNoticeView extends StatelessWidget {
                   iconColor: Colors.purpleAccent,
                   collapsedIconColor: Colors.grey,
                   leading: CircleAvatar(
-                    backgroundColor: Colors.purpleAccent.withValues(alpha: 0.15),
-                    child: const Icon(Icons.campaign, color: Colors.purpleAccent),
+                    backgroundColor: Colors.purpleAccent.withValues(
+                      alpha: 0.15,
+                    ),
+                    child: const Icon(
+                      Icons.campaign,
+                      color: Colors.purpleAccent,
+                    ),
                   ),
                   title: Text(
                     title,
@@ -82,9 +97,16 @@ class UserNoticeView extends StatelessWidget {
                       color: Colors.white,
                     ),
                   ),
-                  subtitle: const Text(
-                    'Tap to read full notice',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  subtitle: Text(
+                    formattedTime.isNotEmpty
+                        ? formattedTime
+                        : 'Tap to read full notice',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: formattedTime.isNotEmpty
+                          ? Colors.grey.shade400
+                          : Colors.grey,
+                    ),
                   ),
                   children: [
                     Padding(

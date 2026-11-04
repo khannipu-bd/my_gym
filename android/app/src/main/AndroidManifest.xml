@@ -1,16 +1,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 🌐 ইন-অ্যাপ আপডেট ও APK ডাউনলোডের জন্য প্রয়োজনীয় পারমিশনসমূহ -->
+    <!-- 🌐 ইন-অ্যাপ আপডেট, ক্যামেরা ও ডাউনলোডের জন্য প্রয়োজনীয় পারমিশনসমূহ -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
+    <!-- 📷 ক্যামেরা হার্ডওয়্যার ট্যাগসমূহ অপশনাল করা হলো যাতে অটোফোকাস না থাকলেও ক্র্যাশ না করে -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <application
         android:label="Spartan GYM"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:hardwareAccelerated="true"
+        android:extractNativeLibs="true">
 
         <activity
             android:name=".MainActivity"
@@ -32,6 +40,14 @@
             </intent-filter>
         </activity>
 
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
+
         <!-- 📦 OTA Update প্যাকেজের সঠিক FileProvider -->
         <provider
             android:name="sk.fourq.otaupdate.OtaUpdateFileProvider"
@@ -50,7 +66,7 @@
             android:value="2" />
     </application>
 
-    <!-- 🔗 বাহ্যিক অ্যাপ লঞ্চিং (WhatsApp, Facebook/Browser, Phone Call) এর জন্য সঠিক Queries -->
+    <!-- 🔗 বাহ্যিক অ্যাপ লঞ্চিং (WhatsApp, Facebook/Browser, Phone Call, PDF Export) এর জন্য সঠিক Queries -->
     <queries>
         <!-- ব্রাউজার ও ওয়েব ইউআরএল (HTTPS) -->
         <intent>
@@ -66,6 +82,12 @@
         <intent>
             <action android:name="android.intent.action.DIAL" />
             <data android:scheme="tel" />
+        </intent>
+
+        <!-- PDF ভিউয়ার ও শেয়ার ইন্টেন্ট -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="application/pdf" />
         </intent>
 
         <!-- হোয়াটসঅ্যাপ প্যাকেজ কুয়েরি -->

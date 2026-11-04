@@ -36,6 +36,9 @@ class _AddNoticeViewState extends State<AddNoticeView> {
         'title': title,
         'content': content,
         'createdAt': FieldValue.serverTimestamp(),
+        'timestamp': FieldValue.serverTimestamp(),
+        'target': 'all',
+        'readBy': [],
       });
 
       // নোটিশ সফলভাবে পুশ হলে ইনপুট ফিল্ডগুলো খালি হবে

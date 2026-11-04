@@ -1,13 +1,21 @@
 // Admin Dashboard
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/app_update_service.dart';
+import '../../../../core/services/attendance_export_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../controllers/auth_controller.dart';
 import 'add_member_view.dart';
 import 'add_notice_view.dart';
+import 'admin_attendance_hub_view.dart';
+import 'admin_qr_scanner_view.dart';
 import 'admin_trainer_management_view.dart';
 import 'diet_hub_view.dart';
+import 'login_view.dart';
 import 'manage_members_view.dart';
 import 'workout_hub_view.dart';
 
@@ -24,6 +32,8 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppUpdateService.checkForUpdate(context);
+      NotificationService.initialize();
+      NotificationService.saveFcmToken();
     });
   }
 
@@ -56,9 +66,18 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ref.read(authControllerProvider.notifier).logout();
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+              await ref.read(authControllerProvider.notifier).logout();
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginView()),
+                  (route) => false,
+                );
+              }
             },
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
@@ -96,6 +115,11 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
               // 4. Quick Stats Chips Row
               _buildQuickStatsRow(),
 
+              const SizedBox(height: 20),
+
+              // 5. Today's Live Attendance Check-ins List
+              _buildTodaysAttendanceSection(),
+
               const SizedBox(height: 24),
 
               // Section Title
@@ -110,7 +134,7 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
               ),
               const SizedBox(height: 12),
 
-              // 5. Action Grid
+              // 6. Action Grid
               _buildActionGrid(context),
 
               const SizedBox(height: 16),
@@ -138,38 +162,93 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
             size: 28,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              Text(
-                'SPARTAN GYM',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
-                  color: Colors.white,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'SPARTAN GYM',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.8,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               SizedBox(height: 2),
-              Text(
-                'Power, Strength & Discipline',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blueAccent,
-                  letterSpacing: 0.8,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Power, Strength & Discipline',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blueAccent,
+                    letterSpacing: 0.6,
+                  ),
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(width: 8),
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminQrScannerView()),
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.cyanAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.cyanAccent.withValues(alpha: 0.5),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.cyanAccent.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: Colors.cyanAccent,
+                  size: 18,
+                ),
+                SizedBox(width: 4),
+                Text(
+                  'Scan QR',
+                  style: TextStyle(
+                    color: Colors.cyanAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
         InkWell(
           onTap: () => _showLogoutDialog(context, ref),
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: const Color(0xFF1A1D29),
               borderRadius: BorderRadius.circular(12),
@@ -180,7 +259,7 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
             child: const Icon(
               Icons.logout_rounded,
               color: Colors.redAccent,
-              size: 22,
+              size: 20,
             ),
           ),
         ),
@@ -400,35 +479,49 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
 
   // Quick Stats Row
   Widget _buildQuickStatsRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatChip(
-            collectionName: 'trainers',
-            label: 'Trainers',
-            icon: Icons.psychology_alt_rounded,
-            accentColor: Colors.deepOrangeAccent,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildStatChip(
-            collectionName: 'workout_templates',
-            label: 'Workouts',
-            icon: Icons.fitness_center_rounded,
-            accentColor: Colors.cyanAccent,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildStatChip(
-            collectionName: 'diet_templates',
-            label: 'Diet Plans',
-            icon: Icons.restaurant_menu_rounded,
-            accentColor: Colors.greenAccent,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isCompact = constraints.maxWidth < 360;
+        final double spacing = isCompact ? 6 : 10;
+        final EdgeInsets padding = EdgeInsets.symmetric(
+          vertical: 12,
+          horizontal: isCompact ? 6 : 10,
+        );
+
+        return Row(
+          children: [
+            Expanded(
+              child: _buildStatChip(
+                collectionName: 'trainers',
+                label: 'Trainers',
+                icon: Icons.psychology_alt_rounded,
+                accentColor: Colors.deepOrangeAccent,
+                padding: padding,
+              ),
+            ),
+            SizedBox(width: spacing),
+            Expanded(
+              child: _buildStatChip(
+                collectionName: 'workout_templates',
+                label: 'Workouts',
+                icon: Icons.fitness_center_rounded,
+                accentColor: Colors.cyanAccent,
+                padding: padding,
+              ),
+            ),
+            SizedBox(width: spacing),
+            Expanded(
+              child: _buildStatChip(
+                collectionName: 'diet_templates',
+                label: 'Diet Plans',
+                icon: Icons.restaurant_menu_rounded,
+                accentColor: Colors.greenAccent,
+                padding: padding,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -437,13 +530,17 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     required String label,
     required IconData icon,
     required Color accentColor,
+    EdgeInsets padding = const EdgeInsets.symmetric(
+      vertical: 12,
+      horizontal: 10,
+    ),
   }) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection(collectionName).snapshots(),
       builder: (context, snapshot) {
         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
         return Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          padding: padding,
           decoration: BoxDecoration(
             color: const Color(0xFF1A1D29),
             borderRadius: BorderRadius.circular(16),
@@ -452,29 +549,35 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: accentColor, size: 16),
+                child: Icon(icon, color: accentColor, size: 15),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '$count',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     Text(
                       label,
                       overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                       style: const TextStyle(
                         color: Colors.grey,
                         fontSize: 10,
@@ -493,6 +596,32 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
 
   Widget _buildActionGrid(BuildContext context) {
     final actions = [
+      _ActionCardItem(
+        title: 'Scan Member QR',
+        subtitle: 'Attendance check-in',
+        icon: Icons.qr_code_scanner_rounded,
+        accentColor: Colors.cyanAccent,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminQrScannerView()),
+          );
+        },
+      ),
+      _ActionCardItem(
+        title: 'Attendance Hub',
+        subtitle: 'Calendar & PDF reports',
+        icon: Icons.how_to_reg_rounded,
+        accentColor: Colors.greenAccent,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AdminAttendanceHubView(),
+            ),
+          );
+        },
+      ),
       _ActionCardItem(
         title: 'Workout Plans',
         subtitle: 'Routines & exercises',
@@ -569,19 +698,26 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
       ),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: actions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.35,
-      ),
-      itemBuilder: (context, index) {
-        final item = actions[index];
-        return _buildActionCard(item);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double width = constraints.maxWidth;
+        final double childAspectRatio = width < 360 ? 1.25 : 1.35;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: actions.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemBuilder: (context, index) {
+            final item = actions[index];
+            return _buildActionCard(item);
+          },
+        );
       },
     );
   }
@@ -664,6 +800,226 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTodaysAttendanceSection() {
+    final String todayDateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('attendance')
+          .where('date', isEqualTo: todayDateStr)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const LinearProgressIndicator(color: Colors.cyanAccent);
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final tA =
+              (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+          final tB =
+              (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+          if (tA == null || tB == null) return 0;
+          return tB.compareTo(tA);
+        });
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1D29),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.how_to_reg_rounded,
+                        color: Colors.cyanAccent,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          "Today's Attendance",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.cyanAccent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${sortedDocs.length} Check-ins',
+                          style: const TextStyle(
+                            color: Colors.cyanAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          AttendanceExportService.exportAttendancePdf(
+                            targetDate: todayDateStr,
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.redAccent.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.picture_as_pdf_rounded,
+                                color: Colors.redAccent,
+                                size: 16,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'PDF',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (sortedDocs.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(
+                    child: Text(
+                      'No check-ins recorded today yet.',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: sortedDocs.length > 5 ? 5 : sortedDocs.length,
+                  itemBuilder: (context, index) {
+                    final data =
+                        sortedDocs[index].data() as Map<String, dynamic>;
+                    final name = data['memberName'] ?? 'Member';
+                    final gymId = data['gymId'] ?? 'N/A';
+                    final time = data['time'] ?? '';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF12141C),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.greenAccent.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.greenAccent,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  'ID: $gymId',
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            time,
+                            style: const TextStyle(
+                              color: Colors.cyanAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -5,13 +5,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'user_attendance_analytics_view.dart';
 import 'user_profile_view.dart';
 import 'user_diet_view.dart';
 import 'user_workout_view.dart';
 import '../../../../core/services/app_update_service.dart';
+import '../../../../core/services/notification_service.dart';
 
 class UserHomeView extends ConsumerStatefulWidget {
   const UserHomeView({super.key});
@@ -35,6 +39,8 @@ class _UserHomeViewState extends ConsumerState<UserHomeView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppUpdateService.checkForUpdate(context);
+      NotificationService.initialize();
+      NotificationService.saveFcmToken();
     });
   }
 
@@ -373,26 +379,48 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
   }
 
   void _markAsRead(String docId) {
-    if (currentUserId.isEmpty) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? currentUserId;
+    if (uid.isEmpty) return;
     FirebaseFirestore.instance.collection('notices').doc(docId).update({
-      'readBy': FieldValue.arrayUnion([currentUserId]),
+      'readBy': FieldValue.arrayUnion([uid]),
     });
   }
 
-  void _showNoticeDetails(String docId, String title, String content) {
+  void _showNoticeDetails(
+    String docId,
+    String title,
+    String content, [
+    String formattedTime = '',
+  ]) {
     _markAsRead(docId);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1D29),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            if (formattedTime.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                formattedTime,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 11,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ],
         ),
         content: Text(
           content,
@@ -520,7 +548,11 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
     String daysLeftText,
     bool isActive,
     String userId,
+    String gymId,
   ) {
+    final String displayPassId = (gymId.isNotEmpty && gymId != 'N/A')
+        ? gymId.trim()
+        : userId.trim();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -594,7 +626,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
             ),
             const SizedBox(height: 4),
             Text(
-              'Member ID: ${userId.length > 8 ? userId.substring(0, 8).toUpperCase() : userId.toUpperCase()}',
+              'Member ID: $displayPassId',
               style: const TextStyle(
                 color: Colors.grey,
                 fontSize: 12,
@@ -655,27 +687,20 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(
-                    Icons.qr_code_2_rounded,
-                    size: 160,
-                    color: Color(0xFF12141C),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.fitness_center_rounded,
-                      color: Colors.blueAccent,
-                      size: 24,
-                    ),
-                  ),
-                ],
+              child: QrImageView(
+                data: displayPassId,
+                version: QrVersions.auto,
+                size: 180.0,
+                errorCorrectionLevel: QrErrorCorrectLevel.M,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Color(0xFF12141C),
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Color(0xFF12141C),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -684,6 +709,8 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
               style: TextStyle(color: Colors.grey, fontSize: 12),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            _buildUserAttendanceHistoryWidget(userId),
             const SizedBox(height: 10),
           ],
         ),
@@ -1196,19 +1223,17 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notices')
-                .orderBy('timestamp', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
-              int unreadCount = 0;
-              if (snapshot.hasData) {
-                for (var doc in snapshot.data!.docs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final List readBy = data['readBy'] ?? [];
-                  if (!readBy.contains(currentUserId)) {
-                    unreadCount++;
-                  }
-                }
-              }
+              final currentUid =
+                  FirebaseAuth.instance.currentUser?.uid ?? currentUserId;
+              final unreadCount = snapshot.hasData
+                  ? snapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final readBy = List<dynamic>.from(data['readBy'] ?? []);
+                      return !readBy.contains(currentUid);
+                    }).length
+                  : 0;
 
               return Stack(
                 alignment: Alignment.center,
@@ -1225,20 +1250,29 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                   ),
                   if (unreadCount > 0)
                     Positioned(
-                      top: 10,
-                      right: 10,
+                      top: 8,
+                      right: 8,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.redAccent,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3366),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFFFF3366,
+                              ).withValues(alpha: 0.5),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
                         ),
                         constraints: const BoxConstraints(
                           minWidth: 16,
                           minHeight: 16,
                         ),
                         child: Text(
-                          '$unreadCount',
+                          unreadCount > 99 ? '99+' : '$unreadCount',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
@@ -1302,7 +1336,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('notices')
-                      .orderBy('timestamp', descending: true)
+                      .orderBy('createdAt', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1335,6 +1369,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
             .snapshots(),
         builder: (context, snapshot) {
           String userName = "User";
+          String userGymId = "N/A";
           String planName = "No Active Plan";
           String daysLeftText = "Expired";
           bool isActive = false;
@@ -1350,6 +1385,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
           if (snapshot.hasData && snapshot.data!.exists) {
             final userData = snapshot.data!.data() as Map<String, dynamic>;
             userName = userData['name'] ?? "User";
+            userGymId = userData['gymId']?.toString() ?? "N/A";
             planName = userData['planName'] ?? "No Active Plan";
             isActive = userData['isSubscribed'] ?? false;
             userWeight =
@@ -1417,6 +1453,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                     daysLeftText,
                     isActive,
                     currentUserId,
+                    userGymId,
                   ),
                   child: Container(
                     width: double.infinity,
@@ -1576,7 +1613,12 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
 
                 const SizedBox(height: 16),
 
-                // 3. DUAL METRICS HUB: BMI & BMR GLASS CARD
+                // 3. RECENT CHECK-IN LOGS
+                _buildUserAttendanceHistoryWidget(currentUserId),
+
+                const SizedBox(height: 16),
+
+                // 4. DUAL METRICS HUB: BMI & BMR GLASS CARD
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
@@ -2307,11 +2349,14 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
   }
 
   Widget _buildNoticeList(List<QueryDocumentSnapshot> docs, String filterType) {
+    final String activeUid =
+        FirebaseAuth.instance.currentUser?.uid ?? currentUserId;
+
     List<QueryDocumentSnapshot> filteredDocs = [];
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
-      final List readBy = data['readBy'] ?? [];
-      final bool isRead = readBy.contains(currentUserId);
+      final List readBy = (data['readBy'] as List?) ?? [];
+      final bool isRead = readBy.contains(activeUid);
       if (filterType == 'all' ||
           (filterType == 'unread' && !isRead) ||
           (filterType == 'read' && isRead)) {
@@ -2334,10 +2379,17 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
       itemBuilder: (context, index) {
         final docId = filteredDocs[index].id;
         final data = filteredDocs[index].data() as Map<String, dynamic>;
-        final title = data['title'] ?? 'Notice';
-        final content = data['content'] ?? '';
-        final List readBy = data['readBy'] ?? [];
-        final bool isRead = readBy.contains(currentUserId);
+        final title = data['title']?.toString() ?? 'Notice';
+        final content = data['content']?.toString() ?? '';
+        final List readBy = (data['readBy'] as List?) ?? [];
+        final bool isRead = readBy.contains(activeUid);
+
+        String formattedTime = '';
+        final rawTimestamp = data['createdAt'] ?? data['timestamp'];
+        if (rawTimestamp is Timestamp) {
+          final date = rawTimestamp.toDate();
+          formattedTime = DateFormat('MMM dd, yyyy • hh:mm a').format(date);
+        }
 
         return Card(
           color: const Color(0xFF1A1D29),
@@ -2380,16 +2432,261 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent>
                   ),
               ],
             ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: Text(
-                content,
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 6),
+                Text(
+                  content,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (formattedTime.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    formattedTime,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
             ),
-            onTap: () => _showNoticeDetails(docId, title, content),
+            onTap: () =>
+                _showNoticeDetails(docId, title, content, formattedTime),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserAttendanceHistoryWidget(String uid) {
+    if (uid.isEmpty) return const SizedBox.shrink();
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('attendance')
+          .where('userId', isEqualTo: uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.greenAccent),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final tA =
+              (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+          final tB =
+              (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+          if (tA == null || tB == null) return 0;
+          return tB.compareTo(tA);
+        });
+
+        final recentDocs = sortedDocs.take(10).toList();
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1D29),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.greenAccent.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.history_rounded,
+                    color: Colors.greenAccent,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Flexible(
+                          child: Text(
+                            'Recent Check-in Logs',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${recentDocs.length} Visits',
+                            style: const TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const UserAttendanceAnalyticsView(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.cyanAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.cyanAccent.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.calendar_month_rounded,
+                            color: Colors.cyanAccent,
+                            size: 14,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Calendar',
+                            style: TextStyle(
+                              color: Colors.cyanAccent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (recentDocs.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Center(
+                    child: Text(
+                      'No check-in history found.',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: recentDocs.length,
+                  itemBuilder: (context, index) {
+                    final data =
+                        recentDocs[index].data() as Map<String, dynamic>;
+                    final dateStr = data['date']?.toString() ?? '';
+                    final timeStr = data['time']?.toString() ?? '';
+
+                    String formattedDate = dateStr;
+                    try {
+                      final parsedDate = DateTime.parse(dateStr);
+                      formattedDate = DateFormat(
+                        'MMM dd, yyyy',
+                      ).format(parsedDate);
+                    } catch (_) {}
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF12141C),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.greenAccent.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.greenAccent,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Check-in Verified',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  formattedDate,
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+            ],
           ),
         );
       },

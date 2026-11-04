@@ -324,6 +324,7 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.bold,
                                                 ),
+                                                maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
@@ -348,6 +349,8 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.bold,
                                                 ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
@@ -355,31 +358,58 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
                                         const SizedBox(height: 6),
                                         Row(
                                           children: [
-                                            Icon(
-                                              Icons.monitor_weight_outlined,
-                                              size: 14,
-                                              color: Colors.grey[400],
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Weight: $weight',
-                                              style: TextStyle(
-                                                color: Colors.grey[400],
-                                                fontSize: 12,
+                                            Flexible(
+                                              flex: 2,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons
+                                                        .monitor_weight_outlined,
+                                                    size: 14,
+                                                    color: Colors.grey[400],
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      'Weight: $weight',
+                                                      style: TextStyle(
+                                                        color: Colors.grey[400],
+                                                        fontSize: 12,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                             const SizedBox(width: 12),
-                                            Icon(
-                                              Icons.ads_click_rounded,
-                                              size: 14,
-                                              color: Colors.grey[400],
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Goal: $goal',
-                                              style: TextStyle(
-                                                color: Colors.grey[400],
-                                                fontSize: 12,
+                                            Flexible(
+                                              flex: 3,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.ads_click_rounded,
+                                                    size: 14,
+                                                    color: Colors.grey[400],
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      'Goal: $goal',
+                                                      style: TextStyle(
+                                                        color: Colors.grey[400],
+                                                        fontSize: 12,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
@@ -722,6 +752,8 @@ class _AssignWorkoutViewState extends ConsumerState<AssignWorkoutView> {
             child: Text(
               'Summary: $name • $duration • ${days.length} Routine Days • $totalExercises Total Exercises',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

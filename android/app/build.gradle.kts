@@ -23,10 +23,17 @@ android {
 
     defaultConfig {
         applicationId = "com.softrova.spartan_gym"
-        minSdk = flutter.minSdkVersion
-        targetSdk = 36
+        minSdk = 26
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
+    }
+
+    packaging {
+        resources {
+            pickFirsts.add("**/*.so")
+        }
     }
 
     buildTypes {
@@ -42,4 +49,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("androidx.window:window:1.3.0")
 }

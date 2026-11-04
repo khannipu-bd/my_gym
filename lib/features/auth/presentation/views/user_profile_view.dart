@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart'; // 👈 তারিখ ফরম্যাটিংয়ের জন্য যোগ করা হয়েছে
+import 'package:shared_preferences/shared_preferences.dart';
 import '../controllers/auth_controller.dart';
+import 'login_view.dart';
 import 'user_contact_trainer_view.dart';
 
 class UserProfileView extends ConsumerWidget {
@@ -595,8 +597,20 @@ class UserProfileView extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: InkWell(
-                    onTap: () =>
-                        ref.read(authControllerProvider.notifier).logout(),
+                    onTap: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.clear();
+                      await ref.read(authControllerProvider.notifier).logout();
+                      await FirebaseAuth.instance.signOut();
+                      if (context.mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (context) => const LoginView(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: double.infinity,
